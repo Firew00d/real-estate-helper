@@ -21,52 +21,69 @@
     gap: 10px;
   }
   header h1 { font-size: 18px; font-weight: 600; }
-  header span { font-size: 20px; }
   .subtitle { font-size: 13px; color: #666; margin-left: auto; }
 
   .container { max-width: 780px; margin: 0 auto; padding: 2rem 1rem; }
 
-  .upload-card {
+  .section-card {
     background: #fff;
-    border: 1.5px dashed #ccc;
     border-radius: 16px;
-    padding: 2.5rem 2rem;
-    text-align: center;
-    cursor: pointer;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid #e8e8e8;
+  }
+  .section-title {
+    font-size: 15px; font-weight: 600;
+    margin-bottom: 1rem;
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  /* API 키 */
+  .api-key-section label { font-size: 13px; font-weight: 600; color: #555; display: block; margin-bottom: 6px; }
+  .api-key-section input {
+    width: 100%; padding: 9px 12px;
+    border: 1px solid #ddd; border-radius: 8px;
+    font-size: 14px; outline: none; font-family: monospace;
+  }
+  .api-key-section input:focus { border-color: #4a7cf7; }
+  .hint { font-size: 12px; color: #999; margin-top: 5px; }
+  .hint a { color: #4a7cf7; }
+
+  /* 파일 업로드 */
+  .upload-card {
+    border: 1.5px dashed #ccc; border-radius: 12px;
+    padding: 2rem; text-align: center; cursor: pointer;
     transition: border-color 0.2s, background 0.2s;
   }
   .upload-card:hover { border-color: #4a7cf7; background: #f7faff; }
   .upload-card.dragover { border-color: #4a7cf7; background: #eef3ff; }
-  .upload-icon { font-size: 48px; margin-bottom: 1rem; }
-  .upload-card h2 { font-size: 17px; font-weight: 600; margin-bottom: 6px; }
-  .upload-card p { font-size: 14px; color: #888; margin-bottom: 1.5rem; }
+  .upload-icon { font-size: 40px; margin-bottom: 0.75rem; }
+  .upload-card h2 { font-size: 16px; font-weight: 600; margin-bottom: 5px; }
+  .upload-card p { font-size: 13px; color: #888; margin-bottom: 1.25rem; }
   #file-input { display: none; }
 
   .btn {
-    display: inline-block;
-    padding: 10px 24px;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-    border: none;
+    display: inline-block; padding: 10px 24px;
+    border-radius: 8px; font-size: 14px; font-weight: 600;
+    cursor: pointer; border: none;
     transition: opacity 0.2s, transform 0.1s;
   }
   .btn:active { transform: scale(0.98); }
   .btn-primary { background: #4a7cf7; color: #fff; }
   .btn-primary:hover { opacity: 0.9; }
   .btn-primary:disabled { background: #aaa; cursor: not-allowed; }
+  .btn-outline {
+    background: #fff; color: #4a7cf7;
+    border: 1px solid #4a7cf7; padding: 7px 16px;
+    font-size: 13px;
+  }
+  .btn-outline:hover { background: #f0f5ff; }
 
-  .file-list { margin-top: 1.5rem; }
+  .file-list { margin-top: 1rem; }
   .file-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    background: #f7f7f5;
-    border-radius: 10px;
-    padding: 10px 14px;
-    margin-bottom: 8px;
-    font-size: 14px;
+    display: flex; align-items: center; gap: 10px;
+    background: #f7f7f5; border-radius: 10px;
+    padding: 10px 14px; margin-bottom: 8px; font-size: 14px;
   }
   .file-icon { font-size: 20px; }
   .file-name { flex: 1; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -74,89 +91,87 @@
   .file-remove { background: none; border: none; cursor: pointer; color: #ccc; font-size: 16px; padding: 2px 6px; }
   .file-remove:hover { color: #e74c3c; }
 
+  /* 누락 정보 입력 패널 */
+  .missing-panel {
+    display: none; margin-top: 1.25rem;
+    background: #fffbf0; border: 1px solid #ffe5a0;
+    border-radius: 12px; padding: 1.25rem;
+  }
+  .missing-panel.show { display: block; }
+  .missing-panel-title {
+    font-size: 14px; font-weight: 600; color: #996600;
+    margin-bottom: 1rem; display: flex; align-items: center; gap: 6px;
+  }
+  .missing-fields { display: flex; flex-direction: column; gap: 10px; }
+  .missing-field label {
+    font-size: 12px; font-weight: 600; color: #555;
+    display: block; margin-bottom: 4px;
+  }
+  .missing-field input {
+    width: 100%; padding: 8px 12px;
+    border: 1px solid #ddd; border-radius: 8px;
+    font-size: 14px; outline: none;
+  }
+  .missing-field input:focus { border-color: #4a7cf7; }
+  .missing-field .field-hint { font-size: 11px; color: #aaa; margin-top: 3px; }
+  .missing-field .add-doc-btn {
+    margin-top: 5px; font-size: 12px; color: #4a7cf7;
+    background: none; border: 1px dashed #4a7cf7;
+    border-radius: 6px; padding: 5px 12px; cursor: pointer;
+  }
+  .missing-field .add-doc-btn:hover { background: #f0f5ff; }
+
   .analyze-section { margin-top: 1.5rem; text-align: center; }
 
+  /* 결과 */
   .result-card {
-    background: #fff;
-    border-radius: 16px;
-    padding: 1.75rem;
-    margin-top: 1.75rem;
-    border: 1px solid #e8e8e8;
-    display: none;
+    background: #fff; border-radius: 16px;
+    padding: 1.75rem; margin-top: 1.75rem;
+    border: 1px solid #e8e8e8; display: none;
   }
   .result-card.show { display: block; }
   .result-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 1.25rem;
-    padding-bottom: 1rem;
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 1.25rem; padding-bottom: 1rem;
     border-bottom: 1px solid #f0f0f0;
   }
   .result-header h3 { font-size: 16px; font-weight: 600; }
-
   .risk-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 4px 12px;
-    border-radius: 20px;
-    font-size: 13px;
-    font-weight: 600;
-    margin-left: auto;
+    display: inline-flex; align-items: center;
+    padding: 4px 12px; border-radius: 20px;
+    font-size: 13px; font-weight: 600; margin-left: auto;
   }
-  .risk-safe { background: #e6f7ec; color: #1a7f44; }
+  .risk-safe    { background: #e6f7ec; color: #1a7f44; }
   .risk-caution { background: #fff7e0; color: #996600; }
-  .risk-danger { background: #fdecea; color: #c0392b; }
+  .risk-danger  { background: #fdecea; color: #c0392b; }
+  .result-body  { font-size: 14.5px; line-height: 1.8; white-space: pre-wrap; color: #333; }
 
-  .result-body { font-size: 14.5px; line-height: 1.8; white-space: pre-wrap; color: #333; }
-
-  .loading {
-    display: none;
-    text-align: center;
-    padding: 2rem;
-    margin-top: 1.75rem;
+  /* 추가 서류 요청 섹션 */
+  .followup-card {
+    background: #f0f5ff; border-radius: 12px;
+    padding: 1.25rem; margin-top: 1.25rem;
+    border: 1px solid #c5d8ff; display: none;
   }
+  .followup-card.show { display: block; }
+  .followup-title { font-size: 14px; font-weight: 600; color: #2a5bd7; margin-bottom: 10px; }
+  .followup-body { font-size: 13.5px; line-height: 1.7; color: #334; white-space: pre-wrap; }
+  .reanalyze-btn { margin-top: 1rem; }
+
+  .loading { display: none; text-align: center; padding: 2rem; margin-top: 1.75rem; }
   .loading.show { display: block; }
   .spinner {
     width: 36px; height: 36px;
-    border: 3px solid #e0e0e0;
-    border-top-color: #4a7cf7;
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
+    border: 3px solid #e0e0e0; border-top-color: #4a7cf7;
+    border-radius: 50%; animation: spin 0.8s linear infinite;
     margin: 0 auto 1rem;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
   .loading p { font-size: 14px; color: #666; }
 
-  .api-key-section {
-    background: #fff;
-    border-radius: 12px;
-    padding: 1.25rem;
-    margin-bottom: 1.5rem;
-    border: 1px solid #e8e8e8;
-  }
-  .api-key-section label { font-size: 13px; font-weight: 600; color: #555; display: block; margin-bottom: 6px; }
-  .api-key-section input {
-    width: 100%;
-    padding: 9px 12px;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    font-size: 14px;
-    outline: none;
-    font-family: monospace;
-  }
-  .api-key-section input:focus { border-color: #4a7cf7; }
-  .api-key-section .hint { font-size: 12px; color: #999; margin-top: 5px; }
-
   .error-msg {
-    background: #fdecea;
-    border-radius: 10px;
-    padding: 12px 16px;
-    font-size: 14px;
-    color: #c0392b;
-    margin-top: 1.25rem;
-    display: none;
+    background: #fdecea; border-radius: 10px;
+    padding: 12px 16px; font-size: 14px; color: #c0392b;
+    margin-top: 1.25rem; display: none;
   }
   .error-msg.show { display: block; }
 </style>
@@ -166,28 +181,36 @@
 <header>
   <span>🏠</span>
   <h1>부동산 계약서 AI 분석</h1>
-  <span class="subtitle">계약서를 올리면 AI가 위험 요소를 분석해드려요</span>
+  <span class="subtitle">서류를 올리면 AI가 꼼꼼히 분석해드려요</span>
 </header>
 
 <div class="container">
 
-  <!-- API Key 입력 -->
-  <div class="api-key-section">
+  <!-- API Key -->
+  <div class="section-card api-key-section">
     <label>Anthropic API Key</label>
     <input type="password" id="api-key" placeholder="sk-ant-..." autocomplete="off" />
-    <p class="hint">🔒 API 키는 브라우저에만 저장되며 서버로 전송되지 않아요. <a href="https://console.anthropic.com/settings/keys" target="_blank">API 키 발급받기 →</a></p>
+    <p class="hint">🔒 브라우저에만 저장되며 외부로 전송되지 않아요. <a href="https://console.anthropic.com/settings/keys" target="_blank">API 키 발급받기 →</a></p>
   </div>
 
   <!-- 파일 업로드 -->
-  <div class="upload-card" id="drop-zone" onclick="document.getElementById('file-input').click()">
-    <div class="upload-icon">📄</div>
-    <h2>파일을 드래그하거나 클릭해서 업로드</h2>
-    <p>PDF, JPG, PNG 등 — 등기부등본, 건축물대장, 계약서, 사진 모두 가능</p>
-    <span class="btn btn-primary" onclick="event.stopPropagation(); document.getElementById('file-input').click()">파일 선택하기</span>
-    <input type="file" id="file-input" accept=".pdf,image/*" multiple />
-  </div>
+  <div class="section-card">
+    <div class="section-title">📂 서류 업로드</div>
+    <div class="upload-card" id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <div class="upload-icon">📄</div>
+      <h2>파일을 드래그하거나 클릭해서 업로드</h2>
+      <p>등기부등본 · 건축물대장 · 임대차계약서 · 사진 등<br>PDF, JPG, PNG 모두 가능 · 여러 장 한 번에 가능</p>
+      <span class="btn btn-primary" onclick="event.stopPropagation(); document.getElementById('file-input').click()">파일 선택하기</span>
+      <input type="file" id="file-input" accept=".pdf,image/*" multiple />
+    </div>
+    <div class="file-list" id="file-list"></div>
 
-  <div class="file-list" id="file-list"></div>
+    <!-- AI가 분석 후 누락 정보 요청하는 패널 -->
+    <div class="missing-panel" id="missing-panel">
+      <div class="missing-panel-title">⚠️ 아래 정보가 서류에서 확인되지 않았어요</div>
+      <div class="missing-fields" id="missing-fields"></div>
+    </div>
+  </div>
 
   <div class="analyze-section">
     <button class="btn btn-primary" id="analyze-btn" disabled onclick="analyze()">🔍 AI 분석 시작하기</button>
@@ -196,7 +219,7 @@
   <div class="error-msg" id="error-msg"></div>
   <div class="loading" id="loading">
     <div class="spinner"></div>
-    <p>AI가 계약서를 꼼꼼히 분석 중이에요...<br>잠시만 기다려주세요 (30초~1분 소요)</p>
+    <p id="loading-text">AI가 서류를 꼼꼼히 분석 중이에요...<br>잠시만 기다려주세요 (30초~1분 소요)</p>
   </div>
 
   <div class="result-card" id="result-card">
@@ -206,17 +229,28 @@
       <span class="risk-badge" id="risk-badge"></span>
     </div>
     <div class="result-body" id="result-body"></div>
+
+    <!-- 추가 서류/정보 요청 -->
+    <div class="followup-card" id="followup-card">
+      <div class="followup-title">📌 더 정확한 분석을 위해 추가로 확인해주세요</div>
+      <div class="followup-body" id="followup-body"></div>
+      <div class="reanalyze-btn">
+        <button class="btn btn-outline" onclick="scrollToUpload()">📎 서류 추가 후 재분석하기 ↑</button>
+      </div>
+    </div>
   </div>
 
 </div>
 
 <script>
 const files = [];
+let missingData = {};  // 사용자가 직접 입력한 누락 정보
 
-function formatSize(bytes) {
-  if (bytes < 1024) return bytes + 'B';
-  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + 'KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + 'MB';
+/* ── 파일 업로드 ── */
+function formatSize(b) {
+  if (b < 1024) return b + 'B';
+  if (b < 1048576) return (b/1024).toFixed(1) + 'KB';
+  return (b/1048576).toFixed(1) + 'MB';
 }
 
 function renderFileList() {
@@ -232,19 +266,11 @@ function renderFileList() {
   document.getElementById('analyze-btn').disabled = files.length === 0;
 }
 
-function removeFile(i) {
-  files.splice(i, 1);
-  renderFileList();
-}
-
-function isAllowed(f) {
-  return f.type === 'application/pdf' || f.type.startsWith('image/');
-}
+function removeFile(i) { files.splice(i, 1); renderFileList(); }
+function isAllowed(f) { return f.type === 'application/pdf' || f.type.startsWith('image/'); }
 
 document.getElementById('file-input').addEventListener('change', (e) => {
-  for (const f of e.target.files) {
-    if (isAllowed(f)) files.push(f);
-  }
+  for (const f of e.target.files) { if (isAllowed(f)) files.push(f); }
   e.target.value = '';
   renderFileList();
 });
@@ -253,11 +279,8 @@ const dz = document.getElementById('drop-zone');
 dz.addEventListener('dragover', (e) => { e.preventDefault(); dz.classList.add('dragover'); });
 dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
 dz.addEventListener('drop', (e) => {
-  e.preventDefault();
-  dz.classList.remove('dragover');
-  for (const f of e.dataTransfer.files) {
-    if (isAllowed(f)) files.push(f);
-  }
+  e.preventDefault(); dz.classList.remove('dragover');
+  for (const f of e.dataTransfer.files) { if (isAllowed(f)) files.push(f); }
   renderFileList();
 });
 
@@ -270,110 +293,224 @@ function fileToBase64(file) {
   });
 }
 
+function scrollToUpload() {
+  document.getElementById('drop-zone').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+/* ── 누락 정보 패널 렌더링 ── */
+function renderMissingPanel(missingList) {
+  // missingList: [{key, label, hint, canUpload}]
+  if (!missingList || missingList.length === 0) {
+    document.getElementById('missing-panel').classList.remove('show');
+    return;
+  }
+
+  const panel = document.getElementById('missing-panel');
+  const container = document.getElementById('missing-fields');
+
+  container.innerHTML = missingList.map(item => `
+    <div class="missing-field">
+      <label>${item.label}</label>
+      <input type="text" id="missing-${item.key}"
+        placeholder="${item.hint || '직접 입력'}"
+        oninput="missingData['${item.key}'] = this.value" />
+      ${item.hint ? `<div class="field-hint">${item.hint}</div>` : ''}
+      ${item.canUpload ? `<button class="add-doc-btn" onclick="document.getElementById('file-input').click()">📎 관련 서류 추가 업로드</button>` : ''}
+    </div>
+  `).join('');
+
+  panel.classList.add('show');
+}
+
+/* ── AI 분석 ── */
 function showError(msg) {
   const el = document.getElementById('error-msg');
-  el.textContent = msg;
-  el.classList.add('show');
+  el.textContent = msg; el.classList.add('show');
 }
-function hideError() {
-  document.getElementById('error-msg').classList.remove('show');
+function hideError() { document.getElementById('error-msg').classList.remove('show'); }
+
+async function callAPI(apiKey, contentArr) {
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-opus-4-5',
+      max_tokens: 3000,
+      messages: [{ role: 'user', content: contentArr }]
+    })
+  });
+  if (!resp.ok) {
+    const err = await resp.json();
+    throw new Error(err.error?.message || `API 오류 (${resp.status})`);
+  }
+  const data = await resp.json();
+  return data.content.map(c => c.text || '').join('');
 }
 
 async function analyze() {
   const apiKey = document.getElementById('api-key').value.trim();
-  if (!apiKey) { showError('API 키를 입력해주세요.'); return; }
-  if (files.length === 0) { showError('분석할 PDF 파일을 업로드해주세요.'); return; }
+  if (!apiKey)       { showError('API 키를 입력해주세요.'); return; }
+  if (!files.length) { showError('분석할 파일을 업로드해주세요.'); return; }
 
   hideError();
   document.getElementById('loading').classList.add('show');
   document.getElementById('result-card').classList.remove('show');
   document.getElementById('analyze-btn').disabled = true;
+  document.getElementById('loading-text').innerHTML = 'AI가 서류를 꼼꼼히 분석 중이에요...<br>잠시만 기다려주세요 (30초~1분 소요)';
 
   try {
+    /* 1단계: 파일 → base64 */
     const contentArr = [];
     for (const file of files) {
       const b64 = await fileToBase64(file);
       if (file.type === 'application/pdf') {
-        contentArr.push({
-          type: 'document',
-          source: { type: 'base64', media_type: 'application/pdf', data: b64 }
-        });
+        contentArr.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } });
       } else {
-        contentArr.push({
-          type: 'image',
-          source: { type: 'base64', media_type: file.type, data: b64 }
-        });
+        contentArr.push({ type: 'image', source: { type: 'base64', media_type: file.type, data: b64 } });
       }
     }
 
+    /* 사용자가 직접 입력한 보완 정보 추가 */
+    const extraInfo = Object.entries(missingData)
+      .filter(([, v]) => v && v.trim())
+      .map(([k, v]) => `- ${k}: ${v}`)
+      .join('\n');
+
+    const extraText = extraInfo
+      ? `\n\n[사용자가 추가로 입력한 정보]\n${extraInfo}`
+      : '';
+
+    /* 2단계: AI 분석 프롬프트 */
     contentArr.push({
       type: 'text',
-      text: `당신은 대한민국 부동산 계약 전문 AI 어시스턴트입니다.
-첨부된 문서들을 분석하여 아래 형식으로 답변해주세요.
+      text: `당신은 대한민국 부동산 임대차 계약 전문 AI입니다.${extraText}
 
-## 📊 종합 판단
-이 매물/계약이 안전한지 위험한지 한 줄로 요약
+첨부된 서류들을 분석하여 아래 JSON 형식으로만 응답해주세요. JSON 외 다른 텍스트는 절대 포함하지 마세요.
 
-## ⚠️ 위험 요소
-발견된 위험 요소를 항목별로 설명 (없으면 "특별한 위험 요소 없음")
+{
+  "risk_level": "안전" | "주의" | "위험",
+  "summary": "종합 판단 한 줄 요약",
+  "gangton": {
+    "possible": true | false,
+    "sale_price": 숫자(만원) | null,
+    "lease_price": 숫자(만원) | null,
+    "prior_debt": 숫자(만원) | null,
+    "ratio": 숫자(%) | null,
+    "verdict": "깡통전세 분석 결과 설명"
+  },
+  "risks": ["위험요소1", "위험요소2"],
+  "safe_reasons": ["안전 근거1", "안전 근거2"],
+  "special_clauses": ["필수 특약사항1", "필수 특약사항2"],
+  "advice": "기타 조언",
+  "missing_info": [
+    {
+      "key": "sale_price",
+      "label": "매매가(시세)",
+      "hint": "네이버 부동산 또는 국토부 실거래가에서 확인. 예: 35000",
+      "canUpload": false
+    }
+  ],
+  "additional_docs": "추가로 필요한 서류 및 이유 (없으면 빈 문자열)"
+}
 
-## ✅ 괜찮은 이유
-계약을 진행해도 되는 근거 (해당하는 경우)
-
-## 📋 추가로 확인해야 할 서류
-제출된 서류 외에 확인이 필요한 서류 목록
-
-## 📝 필수 특약사항 추천
-이 계약에 반드시 포함시켜야 할 특약사항
-
-## 💡 기타 조언
-추가로 알아두면 좋을 사항
-
-마지막 줄에 반드시 다음 중 하나를 적어주세요: [위험도: 안전] 또는 [위험도: 주의] 또는 [위험도: 위험]`
+missing_info 규칙:
+- 서류에서 확인 불가능하고 분석에 꼭 필요한 정보만 포함
+- 깡통전세 분석에 필요한 매매가/선순위채권이 서류에 없으면 반드시 포함
+- canUpload: 서류를 추가로 올리면 확인 가능한 경우 true, 직접 입력이 필요한 경우 false
+- 이미 서류에 있는 정보는 절대 포함하지 말 것`
     });
 
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-opus-4-5',
-        max_tokens: 2000,
-        messages: [{ role: 'user', content: contentArr }]
-      })
-    });
+    const rawText = await callAPI(apiKey, contentArr);
 
-    if (!resp.ok) {
-      const err = await resp.json();
-      throw new Error(err.error?.message || `API 오류 (${resp.status})`);
+    /* JSON 파싱 */
+    let result;
+    try {
+      const clean = rawText.replace(/```json|```/g, '').trim();
+      result = JSON.parse(clean);
+    } catch {
+      throw new Error('분석 결과를 읽는 중 오류가 발생했어요. 다시 시도해주세요.');
     }
 
-    const data = await resp.json();
-    const text = data.content.map(c => c.text || '').join('');
+    /* 결과 렌더링 */
+    renderResult(result);
 
-    let riskLevel = '분석완료';
-    let riskClass = '';
-    if (text.includes('[위험도: 안전]')) { riskLevel = '✅ 안전'; riskClass = 'risk-safe'; }
-    else if (text.includes('[위험도: 주의]')) { riskLevel = '⚠️ 주의 필요'; riskClass = 'risk-caution'; }
-    else if (text.includes('[위험도: 위험]')) { riskLevel = '🚨 위험'; riskClass = 'risk-danger'; }
-
-    const badge = document.getElementById('risk-badge');
-    badge.textContent = riskLevel;
-    badge.className = 'risk-badge ' + riskClass;
-
-    const cleanText = text.replace(/\[위험도: (안전|주의|위험)\]/g, '').trim();
-    document.getElementById('result-body').textContent = cleanText;
-    document.getElementById('result-card').classList.add('show');
+    /* 누락 정보 패널 */
+    renderMissingPanel(result.missing_info || []);
 
   } catch (e) {
     showError('분석 중 오류가 발생했어요: ' + e.message);
   } finally {
     document.getElementById('loading').classList.remove('show');
     document.getElementById('analyze-btn').disabled = false;
+  }
+}
+
+function renderResult(r) {
+  /* 위험도 배지 */
+  const badgeMap = {
+    '안전': ['✅ 안전', 'risk-safe'],
+    '주의': ['⚠️ 주의 필요', 'risk-caution'],
+    '위험': ['🚨 위험', 'risk-danger']
+  };
+  const [label, cls] = badgeMap[r.risk_level] || ['분석완료', ''];
+  const badge = document.getElementById('risk-badge');
+  badge.textContent = label;
+  badge.className = 'risk-badge ' + cls;
+
+  /* 본문 조립 */
+  let body = '';
+
+  body += `📊 종합 판단\n${r.summary}\n`;
+
+  /* 깡통전세 */
+  if (r.gangton) {
+    body += `\n🏷️ 깡통전세 분석\n`;
+    if (r.gangton.possible && r.gangton.ratio !== null) {
+      const ratio = r.gangton.ratio;
+      const barEmoji = ratio >= 80 ? '🔴' : ratio >= 70 ? '🟡' : '🟢';
+      body += `${barEmoji} 전세가율: ${ratio.toFixed(1)}%`;
+      if (r.gangton.sale_price)  body += `  |  매매가: ${r.gangton.sale_price.toLocaleString()}만원`;
+      if (r.gangton.lease_price) body += `  |  전세금: ${r.gangton.lease_price.toLocaleString()}만원`;
+      if (r.gangton.prior_debt)  body += `  |  선순위채권: ${r.gangton.prior_debt.toLocaleString()}만원`;
+      body += '\n';
+    }
+    body += `${r.gangton.verdict}\n`;
+  }
+
+  if (r.risks && r.risks.length) {
+    body += `\n⚠️ 위험 요소\n`;
+    r.risks.forEach(x => body += `• ${x}\n`);
+  }
+
+  if (r.safe_reasons && r.safe_reasons.length) {
+    body += `\n✅ 안전한 근거\n`;
+    r.safe_reasons.forEach(x => body += `• ${x}\n`);
+  }
+
+  if (r.special_clauses && r.special_clauses.length) {
+    body += `\n📝 필수 특약사항\n`;
+    r.special_clauses.forEach((x, i) => body += `${i+1}. ${x}\n`);
+  }
+
+  if (r.advice) {
+    body += `\n💡 기타 조언\n${r.advice}\n`;
+  }
+
+  document.getElementById('result-body').textContent = body.trim();
+  document.getElementById('result-card').classList.add('show');
+
+  /* 추가 서류 요청 */
+  const followup = document.getElementById('followup-card');
+  if (r.additional_docs && r.additional_docs.trim()) {
+    document.getElementById('followup-body').textContent = r.additional_docs;
+    followup.classList.add('show');
+  } else {
+    followup.classList.remove('show');
   }
 }
 </script>
