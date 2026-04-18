@@ -181,10 +181,10 @@
   <!-- 파일 업로드 -->
   <div class="upload-card" id="drop-zone" onclick="document.getElementById('file-input').click()">
     <div class="upload-icon">📄</div>
-    <h2>PDF 파일을 드래그하거나 클릭해서 업로드</h2>
-    <p>등기부등본, 건축물대장, 임대차 계약서 등</p>
+    <h2>파일을 드래그하거나 클릭해서 업로드</h2>
+    <p>PDF, JPG, PNG 등 — 등기부등본, 건축물대장, 계약서, 사진 모두 가능</p>
     <span class="btn btn-primary" onclick="event.stopPropagation(); document.getElementById('file-input').click()">파일 선택하기</span>
-    <input type="file" id="file-input" accept=".pdf" multiple />
+    <input type="file" id="file-input" accept=".pdf,image/*" multiple />
   </div>
 
   <div class="file-list" id="file-list"></div>
@@ -223,7 +223,7 @@ function renderFileList() {
   const list = document.getElementById('file-list');
   list.innerHTML = files.map((f, i) => `
     <div class="file-item">
-      <span class="file-icon">📄</span>
+      <span class="file-icon">${f.type === 'application/pdf' ? '📄' : '🖼️'}</span>
       <span class="file-name">${f.name}</span>
       <span class="file-size">${formatSize(f.size)}</span>
       <button class="file-remove" onclick="removeFile(${i})">✕</button>
@@ -237,9 +237,13 @@ function removeFile(i) {
   renderFileList();
 }
 
+function isAllowed(f) {
+  return f.type === 'application/pdf' || f.type.startsWith('image/');
+}
+
 document.getElementById('file-input').addEventListener('change', (e) => {
   for (const f of e.target.files) {
-    if (f.type === 'application/pdf') files.push(f);
+    if (isAllowed(f)) files.push(f);
   }
   e.target.value = '';
   renderFileList();
@@ -252,7 +256,7 @@ dz.addEventListener('drop', (e) => {
   e.preventDefault();
   dz.classList.remove('dragover');
   for (const f of e.dataTransfer.files) {
-    if (f.type === 'application/pdf') files.push(f);
+    if (isAllowed(f)) files.push(f);
   }
   renderFileList();
 });
@@ -289,10 +293,17 @@ async function analyze() {
     const contentArr = [];
     for (const file of files) {
       const b64 = await fileToBase64(file);
-      contentArr.push({
-        type: 'document',
-        source: { type: 'base64', media_type: 'application/pdf', data: b64 }
-      });
+      if (file.type === 'application/pdf') {
+        contentArr.push({
+          type: 'document',
+          source: { type: 'base64', media_type: 'application/pdf', data: b64 }
+        });
+      } else {
+        contentArr.push({
+          type: 'image',
+          source: { type: 'base64', media_type: file.type, data: b64 }
+        });
+      }
     }
 
     contentArr.push({
