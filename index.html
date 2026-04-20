@@ -5,9 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>부동산 계약서 AI 분석</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap');
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
     background: #f5f5f0;
     color: #1a1a1a;
     min-height: 100vh;
@@ -20,10 +22,10 @@
     align-items: center;
     gap: 10px;
   }
-  header h1 { font-size: 18px; font-weight: 600; }
+  header h1 { font-size: 18px; font-weight: 700; }
   .subtitle { font-size: 13px; color: #666; margin-left: auto; }
 
-  .container { max-width: 780px; margin: 0 auto; padding: 2rem 1rem; }
+  .container { max-width: 800px; margin: 0 auto; padding: 2rem 1rem; }
 
   .section-card {
     background: #fff;
@@ -33,7 +35,7 @@
     border: 1px solid #e8e8e8;
   }
   .section-title {
-    font-size: 15px; font-weight: 600;
+    font-size: 15px; font-weight: 700;
     margin-bottom: 1rem;
     display: flex; align-items: center; gap: 6px;
   }
@@ -67,6 +69,7 @@
     border-radius: 8px; font-size: 14px; font-weight: 600;
     cursor: pointer; border: none;
     transition: opacity 0.2s, transform 0.1s;
+    font-family: 'Noto Sans KR', sans-serif;
   }
   .btn:active { transform: scale(0.98); }
   .btn-primary { background: #4a7cf7; color: #fff; }
@@ -78,6 +81,9 @@
     font-size: 13px;
   }
   .btn-outline:hover { background: #f0f5ff; }
+  .btn-sm {
+    padding: 6px 14px; font-size: 12px; border-radius: 6px;
+  }
 
   .file-list { margin-top: 1rem; }
   .file-item {
@@ -90,6 +96,57 @@
   .file-size { color: #999; font-size: 12px; }
   .file-remove { background: none; border: none; cursor: pointer; color: #ccc; font-size: 16px; padding: 2px 6px; }
   .file-remove:hover { color: #e74c3c; }
+
+  /* ── 자동 특약 생성 섹션 ── */
+  .clause-gen-section {
+    background: #f0f8ff;
+    border: 1px solid #c5d8ff;
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+  .clause-gen-title {
+    font-size: 14px; font-weight: 700; color: #2a5bd7;
+    margin-bottom: 0.75rem; display: flex; align-items: center; gap: 6px;
+  }
+  .clause-tags {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 0.75rem;
+  }
+  .clause-tag {
+    background: #fff; border: 1.5px solid #c5d8ff; border-radius: 20px;
+    padding: 5px 14px; font-size: 13px; cursor: pointer;
+    transition: all 0.15s; color: #334;
+    font-family: 'Noto Sans KR', sans-serif;
+  }
+  .clause-tag:hover { border-color: #4a7cf7; color: #2a5bd7; }
+  .clause-tag.selected { background: #4a7cf7; border-color: #4a7cf7; color: #fff; }
+  .clause-custom-input {
+    display: flex; gap: 8px; margin-top: 8px;
+  }
+  .clause-custom-input input {
+    flex: 1; padding: 8px 12px;
+    border: 1px solid #ddd; border-radius: 8px;
+    font-size: 13px; outline: none;
+    font-family: 'Noto Sans KR', sans-serif;
+  }
+  .clause-custom-input input:focus { border-color: #4a7cf7; }
+  .generated-clauses {
+    display: none; margin-top: 1rem;
+    background: #fff; border-radius: 10px; padding: 1rem;
+    border: 1px solid #e0eaff;
+  }
+  .generated-clauses.show { display: block; }
+  .generated-clause-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid #f0f0f0; font-size: 13.5px; line-height: 1.6;
+  }
+  .generated-clause-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .clause-copy-btn {
+    flex-shrink: 0; background: #f0f5ff; border: 1px solid #c5d8ff;
+    color: #4a7cf7; border-radius: 6px; padding: 4px 10px;
+    font-size: 11px; cursor: pointer; font-family: 'Noto Sans KR', sans-serif;
+  }
+  .clause-copy-btn:hover { background: #e0eaff; }
 
   /* 누락 정보 입력 패널 */
   .missing-panel {
@@ -111,6 +168,7 @@
     width: 100%; padding: 8px 12px;
     border: 1px solid #ddd; border-radius: 8px;
     font-size: 14px; outline: none;
+    font-family: 'Noto Sans KR', sans-serif;
   }
   .missing-field input:focus { border-color: #4a7cf7; }
   .missing-field .field-hint { font-size: 11px; color: #aaa; margin-top: 3px; }
@@ -118,6 +176,7 @@
     margin-top: 5px; font-size: 12px; color: #4a7cf7;
     background: none; border: 1px dashed #4a7cf7;
     border-radius: 6px; padding: 5px 12px; cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif;
   }
   .missing-field .add-doc-btn:hover { background: #f0f5ff; }
 
@@ -132,19 +191,203 @@
   .result-card.show { display: block; }
   .result-header {
     display: flex; align-items: center; gap: 10px;
-    margin-bottom: 1.25rem; padding-bottom: 1rem;
+    margin-bottom: 1.5rem; padding-bottom: 1rem;
     border-bottom: 1px solid #f0f0f0;
   }
-  .result-header h3 { font-size: 16px; font-weight: 600; }
+  .result-header h3 { font-size: 16px; font-weight: 700; }
   .risk-badge {
     display: inline-flex; align-items: center;
     padding: 4px 12px; border-radius: 20px;
-    font-size: 13px; font-weight: 600; margin-left: auto;
+    font-size: 13px; font-weight: 700; margin-left: auto;
   }
   .risk-safe    { background: #e6f7ec; color: #1a7f44; }
   .risk-caution { background: #fff7e0; color: #996600; }
   .risk-danger  { background: #fdecea; color: #c0392b; }
-  .result-body  { font-size: 14.5px; line-height: 1.8; white-space: pre-wrap; color: #333; }
+
+  /* ── 점수 카드 ── */
+  .score-section {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .score-headline {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 1rem;
+  }
+  .score-circle {
+    width: 72px; height: 72px; border-radius: 50%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    font-weight: 800; flex-shrink: 0;
+    border: 4px solid;
+  }
+  .score-circle .score-num { font-size: 22px; line-height: 1; }
+  .score-circle .score-sub { font-size: 10px; margin-top: 2px; }
+  .score-good  { border-color: #1a7f44; color: #1a7f44; background: #e6f7ec; }
+  .score-mid   { border-color: #996600; color: #996600; background: #fff7e0; }
+  .score-bad   { border-color: #c0392b; color: #c0392b; background: #fdecea; }
+  .score-desc  { font-size: 13.5px; color: #555; line-height: 1.6; flex: 1; }
+
+  .score-items { display: flex; flex-direction: column; gap: 8px; }
+  .score-item {
+    display: grid; grid-template-columns: 120px 1fr 40px;
+    align-items: center; gap: 10px; font-size: 13px;
+  }
+  .score-item-label { color: #555; font-weight: 500; }
+  .score-bar-bg {
+    background: #f0f0f0; border-radius: 4px; height: 7px; overflow: hidden;
+  }
+  .score-bar-fill {
+    height: 100%; border-radius: 4px;
+    transition: width 0.6s cubic-bezier(.4,0,.2,1);
+  }
+  .bar-good { background: #34c759; }
+  .bar-mid  { background: #f9a825; }
+  .bar-bad  { background: #e74c3c; }
+  .score-item-val { text-align: right; font-weight: 700; font-size: 12px; }
+
+  /* ── 실질 비용 ── */
+  .cost-section {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .cost-section-title {
+    font-size: 14px; font-weight: 700; margin-bottom: 1rem;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .cost-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 10px; margin-bottom: 1rem;
+  }
+  .cost-item {
+    background: #f9f9f7; border-radius: 10px; padding: 12px 14px;
+  }
+  .cost-item-label { font-size: 11px; color: #888; margin-bottom: 4px; }
+  .cost-item-val { font-size: 16px; font-weight: 700; color: #1a1a1a; }
+  .cost-item-sub { font-size: 11px; color: #aaa; margin-top: 2px; }
+  .cost-total {
+    background: #1a1a1a; color: #fff; border-radius: 10px;
+    padding: 14px 16px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .cost-total-label { font-size: 13px; opacity: 0.7; }
+  .cost-total-val { font-size: 18px; font-weight: 800; }
+  .insurance-note {
+    background: #f0f8ff; border-radius: 8px; padding: 10px 14px;
+    font-size: 12.5px; color: #2a5bd7; margin-top: 10px; line-height: 1.6;
+  }
+
+  /* ── 분쟁 케이스 ── */
+  .dispute-section {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .dispute-title {
+    font-size: 14px; font-weight: 700; margin-bottom: 1rem;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .dispute-case {
+    border: 1px solid #f0f0f0; border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 8px;
+  }
+  .dispute-case-header {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+  }
+  .dispute-badge {
+    font-size: 11px; font-weight: 700; padding: 2px 8px;
+    border-radius: 10px; flex-shrink: 0;
+  }
+  .dispute-win   { background: #e6f7ec; color: #1a7f44; }
+  .dispute-lose  { background: #fdecea; color: #c0392b; }
+  .dispute-mixed { background: #fff7e0; color: #996600; }
+  .dispute-case-title { font-size: 13.5px; font-weight: 600; }
+  .dispute-case-body  { font-size: 12.5px; color: #666; line-height: 1.6; }
+  .dispute-case-lesson {
+    margin-top: 6px; font-size: 12px; color: #4a7cf7;
+    font-weight: 600; padding-top: 6px; border-top: 1px dashed #eee;
+  }
+
+  /* ── 특약 패턴 ── */
+  .pattern-section {
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .pattern-title {
+    font-size: 14px; font-weight: 700; margin-bottom: 1rem;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .pattern-item {
+    background: #fffbf0; border: 1px solid #ffe5a0;
+    border-radius: 10px; padding: 12px 14px; margin-bottom: 8px;
+  }
+  .pattern-item.safe {
+    background: #f0fff4; border-color: #b2dfdb;
+  }
+  .pattern-item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .pattern-risk-tag {
+    font-size: 11px; font-weight: 700; padding: 2px 8px;
+    border-radius: 10px;
+  }
+  .tag-danger  { background: #fdecea; color: #c0392b; }
+  .tag-caution { background: #fff7e0; color: #996600; }
+  .tag-safe    { background: #e6f7ec; color: #1a7f44; }
+  .pattern-item-text { font-size: 13px; font-weight: 600; }
+  .pattern-item-desc { font-size: 12.5px; color: #666; line-height: 1.6; }
+  .pattern-item-suggest { font-size: 12px; color: #4a7cf7; margin-top: 4px; font-weight: 500; }
+
+  /* 기존 결과 본문 */
+  .result-section { margin-bottom: 1.25rem; }
+  .result-section-title {
+    font-size: 14px; font-weight: 700; margin-bottom: 0.6rem;
+    display: flex; align-items: center; gap: 6px; color: #333;
+  }
+  .result-body { font-size: 14px; line-height: 1.8; color: #444; }
+  .result-list { list-style: none; padding: 0; }
+  .result-list li {
+    padding: 6px 0 6px 16px; position: relative;
+    font-size: 14px; line-height: 1.6; color: #444;
+    border-bottom: 1px solid #f5f5f5;
+  }
+  .result-list li:last-child { border-bottom: none; }
+  .result-list li::before { content: '•'; position: absolute; left: 0; color: #ccc; }
+
+  .clause-list { list-style: none; padding: 0; }
+  .clause-list li {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 8px 0; border-bottom: 1px solid #f5f5f5;
+    font-size: 13.5px; line-height: 1.6; color: #333;
+  }
+  .clause-list li:last-child { border-bottom: none; }
+  .clause-num {
+    flex-shrink: 0; background: #4a7cf7; color: #fff;
+    width: 20px; height: 20px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; margin-top: 1px;
+  }
+  .clause-copy-inline {
+    flex-shrink: 0; margin-left: auto;
+    background: #f0f5ff; border: 1px solid #c5d8ff;
+    color: #4a7cf7; border-radius: 6px; padding: 3px 9px;
+    font-size: 11px; cursor: pointer; font-family: 'Noto Sans KR', sans-serif;
+  }
+  .clause-copy-inline:hover { background: #e0eaff; }
+
+  /* gangton */
+  .gangton-box {
+    background: #f9f9f9; border-radius: 10px; padding: 14px;
+    margin-bottom: 8px;
+  }
+  .gangton-ratio-row {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 8px;
+  }
+  .gangton-ratio-num { font-size: 24px; font-weight: 800; }
+  .gangton-ratio-bar-wrap { flex: 1; }
+  .gangton-ratio-bar-bg { background: #e0e0e0; border-radius: 4px; height: 10px; overflow: hidden; position: relative; }
+  .gangton-ratio-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+  .gangton-stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 8px; }
+  .gangton-stat { font-size: 12px; color: #666; }
+  .gangton-stat span { font-weight: 700; color: #333; }
+  .gangton-verdict { font-size: 13.5px; line-height: 1.6; color: #444; }
 
   /* 추가 서류 요청 섹션 */
   .followup-card {
@@ -153,7 +396,7 @@
     border: 1px solid #c5d8ff; display: none;
   }
   .followup-card.show { display: block; }
-  .followup-title { font-size: 14px; font-weight: 600; color: #2a5bd7; margin-bottom: 10px; }
+  .followup-title { font-size: 14px; font-weight: 700; color: #2a5bd7; margin-bottom: 10px; }
   .followup-body { font-size: 13.5px; line-height: 1.7; color: #334; white-space: pre-wrap; }
   .reanalyze-btn { margin-top: 1rem; }
 
@@ -174,6 +417,30 @@
     margin-top: 1.25rem; display: none;
   }
   .error-msg.show { display: block; }
+
+  .divider { height: 1px; background: #f0f0f0; margin: 1.25rem 0; }
+
+  /* 클립보드 토스트 */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: #1a1a1a; color: #fff; padding: 10px 20px;
+    border-radius: 20px; font-size: 13px; font-weight: 600;
+    opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 9999;
+  }
+  .toast.show { opacity: 1; }
+
+  /* 클로딩 스피너 (특약 생성용) */
+  .mini-spinner {
+    display: inline-block; width: 14px; height: 14px;
+    border: 2px solid #c5d8ff; border-top-color: #4a7cf7;
+    border-radius: 50%; animation: spin 0.7s linear infinite;
+    vertical-align: middle; margin-right: 6px;
+  }
+
+  @media (max-width: 500px) {
+    .cost-grid { grid-template-columns: 1fr; }
+    .score-item { grid-template-columns: 100px 1fr 36px; }
+  }
 </style>
 </head>
 <body>
@@ -212,6 +479,33 @@
     </div>
   </div>
 
+  <!-- ── 자동 특약 생성 ── -->
+  <div class="section-card">
+    <div class="section-title">✍️ 자동 특약 생성</div>
+    <div class="clause-gen-section">
+      <div class="clause-gen-title">🏷️ 해당하는 상황을 선택하세요</div>
+      <div class="clause-tags" id="clause-tags">
+        <button class="clause-tag" data-tag="반려동물 있음" onclick="toggleTag(this)">🐾 반려동물 있음</button>
+        <button class="clause-tag" data-tag="단기 거주 예정 (1년 이하)" onclick="toggleTag(this)">⏱️ 단기 거주</button>
+        <button class="clause-tag" data-tag="전세자금대출 사용" onclick="toggleTag(this)">🏦 전세대출 사용</button>
+        <button class="clause-tag" data-tag="신혼부부/가족 입주" onclick="toggleTag(this)">👨‍👩‍👧 신혼/가족</button>
+        <button class="clause-tag" data-tag="재건축/재개발 우려 지역" onclick="toggleTag(this)">🏗️ 재건축 우려</button>
+        <button class="clause-tag" data-tag="외국인 임차인" onclick="toggleTag(this)">🌏 외국인</button>
+        <button class="clause-tag" data-tag="주차 필요" onclick="toggleTag(this)">🚗 주차 필요</button>
+        <button class="clause-tag" data-tag="인테리어/수리 필요" onclick="toggleTag(this)">🔧 수리/인테리어</button>
+        <button class="clause-tag" data-tag="반전세(보증+월세)" onclick="toggleTag(this)">💰 반전세</button>
+        <button class="clause-tag" data-tag="임대인 거주 동거" onclick="toggleTag(this)">🏠 임대인 동거</button>
+      </div>
+      <div class="clause-custom-input">
+        <input type="text" id="clause-custom" placeholder="기타 상황 직접 입력 (예: 아이 있는 집, 재택근무)" />
+        <button class="btn btn-outline btn-sm" onclick="generateClauses()">✨ 특약 생성</button>
+      </div>
+      <div class="generated-clauses" id="generated-clauses">
+        <div id="generated-clauses-body"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="analyze-section">
     <button class="btn btn-primary" id="analyze-btn" disabled onclick="analyze()">🔍 AI 분석 시작하기</button>
   </div>
@@ -222,15 +516,80 @@
     <p id="loading-text">AI가 서류를 꼼꼼히 분석 중이에요...<br>잠시만 기다려주세요 (30초~1분 소요)</p>
   </div>
 
+  <!-- 분석 결과 카드 -->
   <div class="result-card" id="result-card">
     <div class="result-header">
       <span>📋</span>
       <h3>분석 결과</h3>
       <span class="risk-badge" id="risk-badge"></span>
     </div>
-    <div class="result-body" id="result-body"></div>
 
-    <!-- 추가 서류/정보 요청 -->
+    <!-- ① 계약 점수 -->
+    <div class="score-section" id="score-section" style="display:none">
+      <div class="result-section-title">🎯 계약 조건 점수</div>
+      <div class="score-headline">
+        <div class="score-circle" id="score-circle">
+          <div class="score-num" id="score-num">--</div>
+          <div class="score-sub">/ 100</div>
+        </div>
+        <div class="score-desc" id="score-desc"></div>
+      </div>
+      <div class="score-items" id="score-items"></div>
+    </div>
+
+    <!-- ② 실질 비용 -->
+    <div class="cost-section" id="cost-section" style="display:none">
+      <div class="cost-section-title">💸 관리비 포함 실질 비용</div>
+      <div class="cost-grid" id="cost-grid"></div>
+      <div class="cost-total" id="cost-total"></div>
+      <div class="insurance-note" id="insurance-note"></div>
+    </div>
+
+    <!-- ③ 특약 패턴 -->
+    <div class="pattern-section" id="pattern-section" style="display:none">
+      <div class="pattern-title">🔎 특약 패턴 분석</div>
+      <div id="pattern-items"></div>
+    </div>
+
+    <!-- ④ 분쟁 케이스 -->
+    <div class="dispute-section" id="dispute-section" style="display:none">
+      <div class="dispute-title">⚖️ 유사 분쟁 케이스</div>
+      <div id="dispute-items"></div>
+    </div>
+
+    <!-- 깡통전세 -->
+    <div class="result-section" id="gangton-section" style="display:none">
+      <div class="result-section-title">🏷️ 깡통전세 분석</div>
+      <div class="gangton-box">
+        <div id="gangton-body"></div>
+      </div>
+    </div>
+
+    <!-- 위험 요소 -->
+    <div class="result-section" id="risks-section" style="display:none">
+      <div class="result-section-title">⚠️ 위험 요소</div>
+      <ul class="result-list" id="risks-list"></ul>
+    </div>
+
+    <!-- 안전한 근거 -->
+    <div class="result-section" id="safe-section" style="display:none">
+      <div class="result-section-title">✅ 안전한 근거</div>
+      <ul class="result-list" id="safe-list"></ul>
+    </div>
+
+    <!-- 필수 특약 -->
+    <div class="result-section" id="clauses-section" style="display:none">
+      <div class="result-section-title">📝 필수 특약사항</div>
+      <ul class="clause-list" id="clauses-list"></ul>
+    </div>
+
+    <!-- 기타 조언 -->
+    <div class="result-section" id="advice-section" style="display:none">
+      <div class="result-section-title">💡 기타 조언</div>
+      <div class="result-body" id="advice-body"></div>
+    </div>
+
+    <!-- 추가 서류 요청 -->
     <div class="followup-card" id="followup-card">
       <div class="followup-title">📌 더 정확한 분석을 위해 추가로 확인해주세요</div>
       <div class="followup-body" id="followup-body"></div>
@@ -242,9 +601,12 @@
 
 </div>
 
+<div class="toast" id="toast">📋 복사되었어요!</div>
+
 <script>
 const files = [];
-let missingData = {};  // 사용자가 직접 입력한 누락 정보
+let missingData = {};
+const selectedTags = new Set();
 
 /* ── 파일 업로드 ── */
 function formatSize(b) {
@@ -297,17 +659,106 @@ function scrollToUpload() {
   document.getElementById('drop-zone').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
+/* ── 태그 토글 ── */
+function toggleTag(btn) {
+  const tag = btn.dataset.tag;
+  if (selectedTags.has(tag)) {
+    selectedTags.delete(tag);
+    btn.classList.remove('selected');
+  } else {
+    selectedTags.add(tag);
+    btn.classList.add('selected');
+  }
+}
+
+/* ── 클립보드 복사 ── */
+function copyToClipboard(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const t = document.getElementById('toast');
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 1800);
+  });
+}
+
+/* ── 자동 특약 생성 ── */
+async function generateClauses() {
+  const apiKey = document.getElementById('api-key').value.trim();
+  if (!apiKey) { alert('먼저 API 키를 입력해주세요.'); return; }
+
+  const tags = [...selectedTags];
+  const custom = document.getElementById('clause-custom').value.trim();
+  const allTags = custom ? [...tags, custom] : tags;
+
+  if (allTags.length === 0) {
+    alert('상황을 하나 이상 선택하거나 직접 입력해주세요.');
+    return;
+  }
+
+  const container = document.getElementById('generated-clauses');
+  const body = document.getElementById('generated-clauses-body');
+  body.innerHTML = '<div style="padding:12px;font-size:13px;color:#888"><span class="mini-spinner"></span>특약 문장을 생성 중이에요...</div>';
+  container.classList.add('show');
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-4-5',
+        max_tokens: 1500,
+        messages: [{
+          role: 'user',
+          content: `당신은 대한민국 부동산 임대차 계약 전문가입니다.
+임차인의 상황: ${allTags.join(', ')}
+
+위 상황에서 임차인에게 유리한 특약사항 문장을 JSON 배열로 생성해주세요.
+각 항목에는 "situation"(상황), "clause"(특약 문장), "reason"(이유 한 줄) 포함.
+반드시 실제 계약서에 그대로 쓸 수 있는 정확한 법적 문장으로 작성하세요.
+JSON 외 다른 텍스트 없이 응답하세요.
+
+[
+  {
+    "situation": "반려동물 있음",
+    "clause": "임차인은 소형 반려동물(5kg 이하) 1마리를 실내에서 사육할 수 있으며, 이로 인한 손상은 퇴거 시 원상복구한다.",
+    "reason": "반려동물 관련 분쟁 예방"
+  }
+]`
+        }]
+      })
+    });
+
+    const data = await resp.json();
+    const raw = data.content.map(c => c.text || '').join('');
+    const clean = raw.replace(/```json|```/g, '').trim();
+    const clauses = JSON.parse(clean);
+
+    body.innerHTML = clauses.map((c, i) => `
+      <div class="generated-clause-item">
+        <div style="flex:1">
+          <div style="font-size:11px;color:#888;margin-bottom:3px">📌 ${c.situation} — ${c.reason}</div>
+          <div style="font-size:13.5px;line-height:1.6;color:#222">${c.clause}</div>
+        </div>
+        <button class="clause-copy-btn" onclick="copyToClipboard(${JSON.stringify(c.clause)})">복사</button>
+      </div>
+    `).join('');
+  } catch(e) {
+    body.innerHTML = `<div style="padding:12px;font-size:13px;color:#c0392b">오류: ${e.message}</div>`;
+  }
+}
+
 /* ── 누락 정보 패널 렌더링 ── */
 function renderMissingPanel(missingList) {
-  // missingList: [{key, label, hint, canUpload}]
   if (!missingList || missingList.length === 0) {
     document.getElementById('missing-panel').classList.remove('show');
     return;
   }
-
   const panel = document.getElementById('missing-panel');
   const container = document.getElementById('missing-fields');
-
   container.innerHTML = missingList.map(item => `
     <div class="missing-field">
       <label>${item.label}</label>
@@ -318,7 +769,6 @@ function renderMissingPanel(missingList) {
       ${item.canUpload ? `<button class="add-doc-btn" onclick="document.getElementById('file-input').click()">📎 관련 서류 추가 업로드</button>` : ''}
     </div>
   `).join('');
-
   panel.classList.add('show');
 }
 
@@ -340,7 +790,7 @@ async function callAPI(apiKey, contentArr) {
     },
     body: JSON.stringify({
       model: 'claude-opus-4-5',
-      max_tokens: 3000,
+      max_tokens: 4000,
       messages: [{ role: 'user', content: contentArr }]
     })
   });
@@ -361,10 +811,8 @@ async function analyze() {
   document.getElementById('loading').classList.add('show');
   document.getElementById('result-card').classList.remove('show');
   document.getElementById('analyze-btn').disabled = true;
-  document.getElementById('loading-text').innerHTML = 'AI가 서류를 꼼꼼히 분석 중이에요...<br>잠시만 기다려주세요 (30초~1분 소요)';
 
   try {
-    /* 1단계: 파일 → base64 */
     const contentArr = [];
     for (const file of files) {
       const b64 = await fileToBase64(file);
@@ -375,17 +823,12 @@ async function analyze() {
       }
     }
 
-    /* 사용자가 직접 입력한 보완 정보 추가 */
     const extraInfo = Object.entries(missingData)
       .filter(([, v]) => v && v.trim())
       .map(([k, v]) => `- ${k}: ${v}`)
       .join('\n');
+    const extraText = extraInfo ? `\n\n[사용자가 추가로 입력한 정보]\n${extraInfo}` : '';
 
-    const extraText = extraInfo
-      ? `\n\n[사용자가 추가로 입력한 정보]\n${extraInfo}`
-      : '';
-
-    /* 2단계: AI 분석 프롬프트 */
     contentArr.push({
       type: 'text',
       text: `당신은 대한민국 부동산 임대차 계약 전문 AI입니다.${extraText}
@@ -395,6 +838,47 @@ async function analyze() {
 {
   "risk_level": "안전" | "주의" | "위험",
   "summary": "종합 판단 한 줄 요약",
+
+  "score": {
+    "total": 숫자(0~100),
+    "description": "점수 설명 (예: 전반적으로 양호하나 선순위채권 부담 있음)",
+    "items": [
+      { "label": "임대인 신뢰도", "score": 숫자(0~20), "max": 20, "comment": "간단 코멘트" },
+      { "label": "권리 안전성",   "score": 숫자(0~20), "max": 20, "comment": "간단 코멘트" },
+      { "label": "계약 조건",     "score": 숫자(0~20), "max": 20, "comment": "간단 코멘트" },
+      { "label": "특약 완성도",   "score": 숫자(0~20), "max": 20, "comment": "간단 코멘트" },
+      { "label": "서류 완비",     "score": 숫자(0~20), "max": 20, "comment": "간단 코멘트" }
+    ]
+  },
+
+  "cost": {
+    "deposit": 숫자(만원) | null,
+    "monthly_rent": 숫자(만원) | null,
+    "management_fee": 숫자(만원) | null,
+    "utilities_estimate": 숫자(만원) | null,
+    "insurance_premium": 숫자(만원) | null,
+    "total_monthly": 숫자(만원) | null,
+    "insurance_note": "전세보증보험 가입 조건 및 주의사항 (없으면 빈 문자열)"
+  },
+
+  "clause_patterns": [
+    {
+      "text": "발견된 특약 또는 조항 내용 요약",
+      "risk": "위험" | "주의" | "안전",
+      "description": "이 조항이 임차인에게 미치는 영향",
+      "suggestion": "대안 또는 수정 방향 (안전한 경우 빈 문자열)"
+    }
+  ],
+
+  "dispute_cases": [
+    {
+      "title": "유사 분쟁 사례 제목",
+      "result": "임차인 승" | "임차인 패" | "합의",
+      "description": "사례 설명 (2~3줄)",
+      "lesson": "이 계약에서 주의할 점"
+    }
+  ],
+
   "gangton": {
     "possible": true | false,
     "sale_price": 숫자(만원) | null,
@@ -404,7 +888,7 @@ async function analyze() {
     "verdict": "깡통전세 분석 결과 설명"
   },
   "risks": ["위험요소1", "위험요소2"],
-  "safe_reasons": ["안전 근거1", "안전 근거2"],
+  "safe_reasons": ["안전 근거1"],
   "special_clauses": ["필수 특약사항1", "필수 특약사항2"],
   "advice": "기타 조언",
   "missing_info": [
@@ -418,16 +902,17 @@ async function analyze() {
   "additional_docs": "추가로 필요한 서류 및 이유 (없으면 빈 문자열)"
 }
 
-missing_info 규칙:
-- 서류에서 확인 불가능하고 분석에 꼭 필요한 정보만 포함
-- 깡통전세 분석에 필요한 매매가/선순위채권이 서류에 없으면 반드시 포함
-- canUpload: 서류를 추가로 올리면 확인 가능한 경우 true, 직접 입력이 필요한 경우 false
-- 이미 서류에 있는 정보는 절대 포함하지 말 것`
+규칙:
+- score.items 5개 항목은 반드시 포함
+- cost는 서류에서 확인 가능한 값만 숫자로. 확인 불가 시 null
+- insurance_premium: 전세금의 약 0.128% 연간 기준으로 월 환산 추정값 제공
+- clause_patterns: 계약서에서 발견된 특약/조항 1~5개 분석. 서류가 없으면 빈 배열
+- dispute_cases: 이 계약의 위험 요소와 유사한 실제 판례/사례 1~3개. 서류가 없으면 빈 배열
+- missing_info: 서류에서 확인 불가능하고 분석에 꼭 필요한 정보만 포함`
     });
 
     const rawText = await callAPI(apiKey, contentArr);
 
-    /* JSON 파싱 */
     let result;
     try {
       const clean = rawText.replace(/```json|```/g, '').trim();
@@ -436,10 +921,7 @@ missing_info 규칙:
       throw new Error('분석 결과를 읽는 중 오류가 발생했어요. 다시 시도해주세요.');
     }
 
-    /* 결과 렌더링 */
     renderResult(result);
-
-    /* 누락 정보 패널 */
     renderMissingPanel(result.missing_info || []);
 
   } catch (e) {
@@ -462,49 +944,177 @@ function renderResult(r) {
   badge.textContent = label;
   badge.className = 'risk-badge ' + cls;
 
-  /* 본문 조립 */
-  let body = '';
+  /* ① 점수 */
+  if (r.score) {
+    const s = r.score;
+    const circleEl = document.getElementById('score-circle');
+    const cls = s.total >= 70 ? 'score-good' : s.total >= 50 ? 'score-mid' : 'score-bad';
+    circleEl.className = 'score-circle ' + cls;
+    document.getElementById('score-num').textContent = s.total;
+    document.getElementById('score-desc').textContent = s.description || '';
 
-  body += `📊 종합 판단\n${r.summary}\n`;
+    const itemsEl = document.getElementById('score-items');
+    itemsEl.innerHTML = (s.items || []).map(item => {
+      const pct = Math.round((item.score / item.max) * 100);
+      const barCls = pct >= 70 ? 'bar-good' : pct >= 50 ? 'bar-mid' : 'bar-bad';
+      return `
+        <div class="score-item">
+          <div class="score-item-label">${item.label}</div>
+          <div class="score-bar-bg">
+            <div class="score-bar-fill ${barCls}" style="width:${pct}%"></div>
+          </div>
+          <div class="score-item-val" style="color:${pct>=70?'#1a7f44':pct>=50?'#996600':'#c0392b'}">${item.score}/${item.max}</div>
+        </div>
+        ${item.comment ? `<div style="font-size:11px;color:#999;margin:-4px 0 4px 0;padding-left:0">${item.comment}</div>` : ''}
+      `;
+    }).join('');
+    document.getElementById('score-section').style.display = 'block';
+  }
+
+  /* ② 실질 비용 */
+  if (r.cost) {
+    const c = r.cost;
+    const costItems = [
+      { label: '보증금/전세금', val: c.deposit, unit: '만원', sub: '일시납' },
+      { label: '월세', val: c.monthly_rent, unit: '만원/월', sub: '' },
+      { label: '관리비', val: c.management_fee, unit: '만원/월', sub: '예상' },
+      { label: '공과금 예상', val: c.utilities_estimate, unit: '만원/월', sub: '평균' },
+      { label: '전세보증보험료', val: c.insurance_premium, unit: '만원/월', sub: '추정' },
+    ].filter(x => x.val !== null && x.val !== undefined);
+
+    document.getElementById('cost-grid').innerHTML = costItems.map(x => `
+      <div class="cost-item">
+        <div class="cost-item-label">${x.label}</div>
+        <div class="cost-item-val">${x.val.toLocaleString()} <span style="font-size:12px;font-weight:400">${x.unit}</span></div>
+        ${x.sub ? `<div class="cost-item-sub">${x.sub}</div>` : ''}
+      </div>
+    `).join('');
+
+    if (c.total_monthly !== null && c.total_monthly !== undefined) {
+      document.getElementById('cost-total').innerHTML = `
+        <div class="cost-total-label">월 실질 부담액 합계</div>
+        <div class="cost-total-val">${c.total_monthly.toLocaleString()}만원</div>
+      `;
+    }
+
+    if (c.insurance_note) {
+      document.getElementById('insurance-note').innerHTML = `📋 ${c.insurance_note}`;
+      document.getElementById('insurance-note').style.display = 'block';
+    } else {
+      document.getElementById('insurance-note').style.display = 'none';
+    }
+
+    document.getElementById('cost-section').style.display = 'block';
+  }
+
+  /* ③ 특약 패턴 */
+  if (r.clause_patterns && r.clause_patterns.length) {
+    document.getElementById('pattern-items').innerHTML = r.clause_patterns.map(p => {
+      const riskMap = {
+        '위험': ['tag-danger', '위험'],
+        '주의': ['tag-caution', '주의'],
+        '안전': ['tag-safe', '안전']
+      };
+      const [tagCls, tagLabel] = riskMap[p.risk] || ['tag-caution', p.risk];
+      const itemCls = p.risk === '안전' ? 'pattern-item safe' : 'pattern-item';
+      return `
+        <div class="${itemCls}">
+          <div class="pattern-item-header">
+            <span class="pattern-risk-tag ${tagCls}">${tagLabel}</span>
+            <span class="pattern-item-text">${p.text}</span>
+          </div>
+          <div class="pattern-item-desc">${p.description}</div>
+          ${p.suggestion ? `<div class="pattern-item-suggest">💡 ${p.suggestion}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+    document.getElementById('pattern-section').style.display = 'block';
+  }
+
+  /* ④ 분쟁 케이스 */
+  if (r.dispute_cases && r.dispute_cases.length) {
+    document.getElementById('dispute-items').innerHTML = r.dispute_cases.map(d => {
+      const resultMap = {
+        '임차인 승': ['dispute-win', '임차인 승'],
+        '임차인 패': ['dispute-lose', '임차인 패'],
+        '합의':      ['dispute-mixed', '합의']
+      };
+      const [badgeCls, badgeLabel] = resultMap[d.result] || ['dispute-mixed', d.result];
+      return `
+        <div class="dispute-case">
+          <div class="dispute-case-header">
+            <span class="dispute-badge ${badgeCls}">${badgeLabel}</span>
+            <span class="dispute-case-title">${d.title}</span>
+          </div>
+          <div class="dispute-case-body">${d.description}</div>
+          <div class="dispute-case-lesson">📌 이 계약에서 주의: ${d.lesson}</div>
+        </div>
+      `;
+    }).join('');
+    document.getElementById('dispute-section').style.display = 'block';
+  }
 
   /* 깡통전세 */
   if (r.gangton) {
-    body += `\n🏷️ 깡통전세 분석\n`;
-    if (r.gangton.possible && r.gangton.ratio !== null) {
-      const ratio = r.gangton.ratio;
-      const barEmoji = ratio >= 80 ? '🔴' : ratio >= 70 ? '🟡' : '🟢';
-      body += `${barEmoji} 전세가율: ${ratio.toFixed(1)}%`;
-      if (r.gangton.sale_price)  body += `  |  매매가: ${r.gangton.sale_price.toLocaleString()}만원`;
-      if (r.gangton.lease_price) body += `  |  전세금: ${r.gangton.lease_price.toLocaleString()}만원`;
-      if (r.gangton.prior_debt)  body += `  |  선순위채권: ${r.gangton.prior_debt.toLocaleString()}만원`;
-      body += '\n';
+    const g = r.gangton;
+    let html = '';
+    if (g.possible && g.ratio !== null) {
+      const ratio = g.ratio;
+      const barColor = ratio >= 80 ? '#e74c3c' : ratio >= 70 ? '#f9a825' : '#34c759';
+      const ratioLabel = ratio >= 80 ? '🔴 위험' : ratio >= 70 ? '🟡 주의' : '🟢 안전';
+      html += `
+        <div class="gangton-ratio-row">
+          <div class="gangton-ratio-num" style="color:${barColor}">${ratio.toFixed(1)}%</div>
+          <div class="gangton-ratio-bar-wrap">
+            <div style="font-size:11px;color:#888;margin-bottom:4px">전세가율 ${ratioLabel}</div>
+            <div class="gangton-ratio-bar-bg">
+              <div class="gangton-ratio-bar-fill" style="width:${Math.min(ratio,100)}%;background:${barColor}"></div>
+            </div>
+          </div>
+        </div>
+        <div class="gangton-stats">
+          ${g.sale_price  ? `<div class="gangton-stat">매매가 <span>${g.sale_price.toLocaleString()}만원</span></div>` : ''}
+          ${g.lease_price ? `<div class="gangton-stat">전세금 <span>${g.lease_price.toLocaleString()}만원</span></div>` : ''}
+          ${g.prior_debt  ? `<div class="gangton-stat">선순위채권 <span>${g.prior_debt.toLocaleString()}만원</span></div>` : ''}
+        </div>
+      `;
     }
-    body += `${r.gangton.verdict}\n`;
+    html += `<div class="gangton-verdict">${g.verdict}</div>`;
+    document.getElementById('gangton-body').innerHTML = html;
+    document.getElementById('gangton-section').style.display = 'block';
   }
 
+  /* 위험 요소 */
   if (r.risks && r.risks.length) {
-    body += `\n⚠️ 위험 요소\n`;
-    r.risks.forEach(x => body += `• ${x}\n`);
+    document.getElementById('risks-list').innerHTML = r.risks.map(x => `<li>${x}</li>`).join('');
+    document.getElementById('risks-section').style.display = 'block';
   }
 
+  /* 안전 근거 */
   if (r.safe_reasons && r.safe_reasons.length) {
-    body += `\n✅ 안전한 근거\n`;
-    r.safe_reasons.forEach(x => body += `• ${x}\n`);
+    document.getElementById('safe-list').innerHTML = r.safe_reasons.map(x => `<li>${x}</li>`).join('');
+    document.getElementById('safe-section').style.display = 'block';
   }
 
+  /* 필수 특약 */
   if (r.special_clauses && r.special_clauses.length) {
-    body += `\n📝 필수 특약사항\n`;
-    r.special_clauses.forEach((x, i) => body += `${i+1}. ${x}\n`);
+    document.getElementById('clauses-list').innerHTML = r.special_clauses.map((x, i) => `
+      <li>
+        <span class="clause-num">${i+1}</span>
+        <span style="flex:1">${x}</span>
+        <button class="clause-copy-inline" onclick="copyToClipboard(${JSON.stringify(x)})">복사</button>
+      </li>
+    `).join('');
+    document.getElementById('clauses-section').style.display = 'block';
   }
 
+  /* 조언 */
   if (r.advice) {
-    body += `\n💡 기타 조언\n${r.advice}\n`;
+    document.getElementById('advice-body').textContent = r.advice;
+    document.getElementById('advice-section').style.display = 'block';
   }
 
-  document.getElementById('result-body').textContent = body.trim();
-  document.getElementById('result-card').classList.add('show');
-
-  /* 추가 서류 요청 */
+  /* 추가 서류 */
   const followup = document.getElementById('followup-card');
   if (r.additional_docs && r.additional_docs.trim()) {
     document.getElementById('followup-body').textContent = r.additional_docs;
@@ -512,6 +1122,9 @@ function renderResult(r) {
   } else {
     followup.classList.remove('show');
   }
+
+  document.getElementById('result-card').classList.add('show');
+  document.getElementById('result-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 </script>
 </body>
