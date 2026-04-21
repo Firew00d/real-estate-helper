@@ -40,7 +40,6 @@
     display: flex; align-items: center; gap: 6px;
   }
 
-  /* API 키 */
   .api-key-section label { font-size: 13px; font-weight: 600; color: #555; display: block; margin-bottom: 6px; }
   .api-key-section input {
     width: 100%; padding: 9px 12px;
@@ -50,6 +49,20 @@
   .api-key-section input:focus { border-color: #4a7cf7; }
   .hint { font-size: 12px; color: #999; margin-top: 5px; }
   .hint a { color: #4a7cf7; }
+
+  /* 건물 종류 선택 */
+  .building-type-section { margin-top: 1rem; }
+  .building-type-section label { font-size: 13px; font-weight: 600; color: #555; display: block; margin-bottom: 6px; }
+  .building-type-row { display: flex; gap: 8px; flex-wrap: wrap; }
+  .building-type-btn {
+    padding: 8px 16px; border-radius: 20px; font-size: 13px;
+    border: 1.5px solid #ddd; background: #fff; cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif; color: #555;
+    transition: all 0.15s;
+  }
+  .building-type-btn:hover { border-color: #4a7cf7; color: #2a5bd7; }
+  .building-type-btn.selected { background: #4a7cf7; border-color: #4a7cf7; color: #fff; font-weight: 600; }
+  .building-type-note { font-size: 11.5px; color: #aaa; margin-top: 6px; }
 
   /* 파일 업로드 */
   .upload-card {
@@ -81,9 +94,7 @@
     font-size: 13px;
   }
   .btn-outline:hover { background: #f0f5ff; }
-  .btn-sm {
-    padding: 6px 14px; font-size: 12px; border-radius: 6px;
-  }
+  .btn-sm { padding: 6px 14px; font-size: 12px; border-radius: 6px; }
 
   .file-list { margin-top: 1rem; }
   .file-item {
@@ -97,21 +108,13 @@
   .file-remove { background: none; border: none; cursor: pointer; color: #ccc; font-size: 16px; padding: 2px 6px; }
   .file-remove:hover { color: #e74c3c; }
 
-  /* ── 자동 특약 생성 섹션 ── */
+  /* 자동 특약 생성 */
   .clause-gen-section {
-    background: #f0f8ff;
-    border: 1px solid #c5d8ff;
-    border-radius: 12px;
-    padding: 1.25rem;
-    margin-bottom: 1.5rem;
+    background: #f0f8ff; border: 1px solid #c5d8ff;
+    border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem;
   }
-  .clause-gen-title {
-    font-size: 14px; font-weight: 700; color: #2a5bd7;
-    margin-bottom: 0.75rem; display: flex; align-items: center; gap: 6px;
-  }
-  .clause-tags {
-    display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 0.75rem;
-  }
+  .clause-gen-title { font-size: 14px; font-weight: 700; color: #2a5bd7; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 6px; }
+  .clause-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 0.75rem; }
   .clause-tag {
     background: #fff; border: 1.5px solid #c5d8ff; border-radius: 20px;
     padding: 5px 14px; font-size: 13px; cursor: pointer;
@@ -120,9 +123,7 @@
   }
   .clause-tag:hover { border-color: #4a7cf7; color: #2a5bd7; }
   .clause-tag.selected { background: #4a7cf7; border-color: #4a7cf7; color: #fff; }
-  .clause-custom-input {
-    display: flex; gap: 8px; margin-top: 8px;
-  }
+  .clause-custom-input { display: flex; gap: 8px; margin-top: 8px; }
   .clause-custom-input input {
     flex: 1; padding: 8px 12px;
     border: 1px solid #ddd; border-radius: 8px;
@@ -130,204 +131,113 @@
     font-family: 'Noto Sans KR', sans-serif;
   }
   .clause-custom-input input:focus { border-color: #4a7cf7; }
-  .generated-clauses {
-    display: none; margin-top: 1rem;
-    background: #fff; border-radius: 10px; padding: 1rem;
-    border: 1px solid #e0eaff;
-  }
+  .generated-clauses { display: none; margin-top: 1rem; background: #fff; border-radius: 10px; padding: 1rem; border: 1px solid #e0eaff; }
   .generated-clauses.show { display: block; }
-  .generated-clause-item {
-    display: flex; align-items: flex-start; gap: 10px;
-    padding: 10px 0; border-bottom: 1px solid #f0f0f0; font-size: 13.5px; line-height: 1.6;
-  }
+  .generated-clause-item { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; font-size: 13.5px; line-height: 1.6; }
   .generated-clause-item:last-child { border-bottom: none; padding-bottom: 0; }
-  .clause-copy-btn {
-    flex-shrink: 0; background: #f0f5ff; border: 1px solid #c5d8ff;
-    color: #4a7cf7; border-radius: 6px; padding: 4px 10px;
-    font-size: 11px; cursor: pointer; font-family: 'Noto Sans KR', sans-serif;
-  }
+  .clause-copy-btn { flex-shrink: 0; background: #f0f5ff; border: 1px solid #c5d8ff; color: #4a7cf7; border-radius: 6px; padding: 4px 10px; font-size: 11px; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; }
   .clause-copy-btn:hover { background: #e0eaff; }
 
   /* 누락 정보 입력 패널 */
-  .missing-panel {
-    display: none; margin-top: 1.25rem;
-    background: #fffbf0; border: 1px solid #ffe5a0;
-    border-radius: 12px; padding: 1.25rem;
-  }
+  .missing-panel { display: none; margin-top: 1.25rem; background: #fffbf0; border: 1px solid #ffe5a0; border-radius: 12px; padding: 1.25rem; }
   .missing-panel.show { display: block; }
-  .missing-panel-title {
-    font-size: 14px; font-weight: 600; color: #996600;
-    margin-bottom: 1rem; display: flex; align-items: center; gap: 6px;
-  }
+  .missing-panel-title { font-size: 14px; font-weight: 600; color: #996600; margin-bottom: 1rem; display: flex; align-items: center; gap: 6px; }
   .missing-fields { display: flex; flex-direction: column; gap: 10px; }
-  .missing-field label {
-    font-size: 12px; font-weight: 600; color: #555;
-    display: block; margin-bottom: 4px;
-  }
-  .missing-field input {
-    width: 100%; padding: 8px 12px;
-    border: 1px solid #ddd; border-radius: 8px;
-    font-size: 14px; outline: none;
-    font-family: 'Noto Sans KR', sans-serif;
-  }
+  .missing-field label { font-size: 12px; font-weight: 600; color: #555; display: block; margin-bottom: 4px; }
+  .missing-field input { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; font-family: 'Noto Sans KR', sans-serif; }
   .missing-field input:focus { border-color: #4a7cf7; }
   .missing-field .field-hint { font-size: 11px; color: #aaa; margin-top: 3px; }
-  .missing-field .add-doc-btn {
-    margin-top: 5px; font-size: 12px; color: #4a7cf7;
-    background: none; border: 1px dashed #4a7cf7;
-    border-radius: 6px; padding: 5px 12px; cursor: pointer;
-    font-family: 'Noto Sans KR', sans-serif;
-  }
+  .missing-field .add-doc-btn { margin-top: 5px; font-size: 12px; color: #4a7cf7; background: none; border: 1px dashed #4a7cf7; border-radius: 6px; padding: 5px 12px; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; }
   .missing-field .add-doc-btn:hover { background: #f0f5ff; }
+
+  /* 실거래가 조회 상태 표시 */
+  .price-search-status {
+    display: none; margin-top: 1.5rem;
+    background: #f0f8ff; border: 1px solid #c5d8ff;
+    border-radius: 12px; padding: 1.25rem;
+  }
+  .price-search-status.show { display: block; }
+  .price-search-title { font-size: 14px; font-weight: 700; color: #2a5bd7; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 6px; }
+  .price-search-steps { display: flex; flex-direction: column; gap: 8px; }
+  .price-step {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 13px; color: #555; padding: 8px 12px;
+    background: #fff; border-radius: 8px; border: 1px solid #e0eaff;
+  }
+  .price-step-icon { font-size: 16px; flex-shrink: 0; }
+  .price-step.done { color: #1a7f44; border-color: #b2dfdb; background: #f0fff4; }
+  .price-step.active { color: #2a5bd7; border-color: #4a7cf7; font-weight: 600; }
+  .price-step.pending { color: #aaa; }
+  .price-result-box {
+    margin-top: 10px; background: #fff;
+    border-radius: 10px; padding: 12px 14px;
+    border: 1px solid #e0eaff; font-size: 13px;
+    color: #333; line-height: 1.7;
+    display: none;
+  }
+  .price-result-box.show { display: block; }
 
   .analyze-section { margin-top: 1.5rem; text-align: center; }
 
   /* 결과 */
-  .result-card {
-    background: #fff; border-radius: 16px;
-    padding: 1.75rem; margin-top: 1.75rem;
-    border: 1px solid #e8e8e8; display: none;
-  }
+  .result-card { background: #fff; border-radius: 16px; padding: 1.75rem; margin-top: 1.75rem; border: 1px solid #e8e8e8; display: none; }
   .result-card.show { display: block; }
-  .result-header {
-    display: flex; align-items: center; gap: 10px;
-    margin-bottom: 1.5rem; padding-bottom: 1rem;
-    border-bottom: 1px solid #f0f0f0;
-  }
+  .result-header { display: flex; align-items: center; gap: 10px; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #f0f0f0; }
   .result-header h3 { font-size: 16px; font-weight: 700; }
-  .risk-badge {
-    display: inline-flex; align-items: center;
-    padding: 4px 12px; border-radius: 20px;
-    font-size: 13px; font-weight: 700; margin-left: auto;
-  }
+  .risk-badge { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 700; margin-left: auto; }
   .risk-safe    { background: #e6f7ec; color: #1a7f44; }
   .risk-caution { background: #fff7e0; color: #996600; }
   .risk-danger  { background: #fdecea; color: #c0392b; }
 
-  /* ── 점수 카드 ── */
-  .score-section {
-    margin-bottom: 1.5rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid #f0f0f0;
-  }
-  .score-headline {
-    display: flex; align-items: center; gap: 12px; margin-bottom: 1rem;
-  }
-  .score-circle {
-    width: 72px; height: 72px; border-radius: 50%;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    font-weight: 800; flex-shrink: 0;
-    border: 4px solid;
-  }
+  .score-section { margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #f0f0f0; }
+  .score-headline { display: flex; align-items: center; gap: 12px; margin-bottom: 1rem; }
+  .score-circle { width: 72px; height: 72px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 800; flex-shrink: 0; border: 4px solid; }
   .score-circle .score-num { font-size: 22px; line-height: 1; }
   .score-circle .score-sub { font-size: 10px; margin-top: 2px; }
   .score-good  { border-color: #1a7f44; color: #1a7f44; background: #e6f7ec; }
   .score-mid   { border-color: #996600; color: #996600; background: #fff7e0; }
   .score-bad   { border-color: #c0392b; color: #c0392b; background: #fdecea; }
   .score-desc  { font-size: 13.5px; color: #555; line-height: 1.6; flex: 1; }
-
   .score-items { display: flex; flex-direction: column; gap: 8px; }
-  .score-item {
-    display: grid; grid-template-columns: 120px 1fr 40px;
-    align-items: center; gap: 10px; font-size: 13px;
-  }
+  .score-item { display: grid; grid-template-columns: 120px 1fr 40px; align-items: center; gap: 10px; font-size: 13px; }
   .score-item-label { color: #555; font-weight: 500; }
-  .score-bar-bg {
-    background: #f0f0f0; border-radius: 4px; height: 7px; overflow: hidden;
-  }
-  .score-bar-fill {
-    height: 100%; border-radius: 4px;
-    transition: width 0.6s cubic-bezier(.4,0,.2,1);
-  }
+  .score-bar-bg { background: #f0f0f0; border-radius: 4px; height: 7px; overflow: hidden; }
+  .score-bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s cubic-bezier(.4,0,.2,1); }
   .bar-good { background: #34c759; }
   .bar-mid  { background: #f9a825; }
   .bar-bad  { background: #e74c3c; }
   .score-item-val { text-align: right; font-weight: 700; font-size: 12px; }
 
-  /* ── 실질 비용 ── */
-  .cost-section {
-    margin-bottom: 1.5rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid #f0f0f0;
-  }
-  .cost-section-title {
-    font-size: 14px; font-weight: 700; margin-bottom: 1rem;
-    display: flex; align-items: center; gap: 6px;
-  }
-  .cost-grid {
-    display: grid; grid-template-columns: 1fr 1fr;
-    gap: 10px; margin-bottom: 1rem;
-  }
-  .cost-item {
-    background: #f9f9f7; border-radius: 10px; padding: 12px 14px;
-  }
+  .cost-section { margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #f0f0f0; }
+  .cost-section-title { font-size: 14px; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 6px; }
+  .cost-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1rem; }
+  .cost-item { background: #f9f9f7; border-radius: 10px; padding: 12px 14px; }
   .cost-item-label { font-size: 11px; color: #888; margin-bottom: 4px; }
   .cost-item-val { font-size: 16px; font-weight: 700; color: #1a1a1a; }
   .cost-item-sub { font-size: 11px; color: #aaa; margin-top: 2px; }
-  .cost-total {
-    background: #1a1a1a; color: #fff; border-radius: 10px;
-    padding: 14px 16px; display: flex; align-items: center; justify-content: space-between;
-  }
+  .cost-total { background: #1a1a1a; color: #fff; border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; }
   .cost-total-label { font-size: 13px; opacity: 0.7; }
   .cost-total-val { font-size: 18px; font-weight: 800; }
-  .insurance-note {
-    background: #f0f8ff; border-radius: 8px; padding: 10px 14px;
-    font-size: 12.5px; color: #2a5bd7; margin-top: 10px; line-height: 1.6;
-  }
+  .insurance-note { background: #f0f8ff; border-radius: 8px; padding: 10px 14px; font-size: 12.5px; color: #2a5bd7; margin-top: 10px; line-height: 1.6; }
 
-  /* ── 분쟁 케이스 ── */
-  .dispute-section {
-    margin-bottom: 1.5rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid #f0f0f0;
-  }
-  .dispute-title {
-    font-size: 14px; font-weight: 700; margin-bottom: 1rem;
-    display: flex; align-items: center; gap: 6px;
-  }
-  .dispute-case {
-    border: 1px solid #f0f0f0; border-radius: 10px;
-    padding: 12px 14px; margin-bottom: 8px;
-  }
-  .dispute-case-header {
-    display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
-  }
-  .dispute-badge {
-    font-size: 11px; font-weight: 700; padding: 2px 8px;
-    border-radius: 10px; flex-shrink: 0;
-  }
+  .dispute-section { margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #f0f0f0; }
+  .dispute-title { font-size: 14px; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 6px; }
+  .dispute-case { border: 1px solid #f0f0f0; border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; }
+  .dispute-case-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  .dispute-badge { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; flex-shrink: 0; }
   .dispute-win   { background: #e6f7ec; color: #1a7f44; }
   .dispute-lose  { background: #fdecea; color: #c0392b; }
   .dispute-mixed { background: #fff7e0; color: #996600; }
   .dispute-case-title { font-size: 13.5px; font-weight: 600; }
   .dispute-case-body  { font-size: 12.5px; color: #666; line-height: 1.6; }
-  .dispute-case-lesson {
-    margin-top: 6px; font-size: 12px; color: #4a7cf7;
-    font-weight: 600; padding-top: 6px; border-top: 1px dashed #eee;
-  }
+  .dispute-case-lesson { margin-top: 6px; font-size: 12px; color: #4a7cf7; font-weight: 600; padding-top: 6px; border-top: 1px dashed #eee; }
 
-  /* ── 특약 패턴 ── */
-  .pattern-section {
-    margin-bottom: 1.5rem;
-    padding-bottom: 1.5rem;
-    border-bottom: 1px solid #f0f0f0;
-  }
-  .pattern-title {
-    font-size: 14px; font-weight: 700; margin-bottom: 1rem;
-    display: flex; align-items: center; gap: 6px;
-  }
-  .pattern-item {
-    background: #fffbf0; border: 1px solid #ffe5a0;
-    border-radius: 10px; padding: 12px 14px; margin-bottom: 8px;
-  }
-  .pattern-item.safe {
-    background: #f0fff4; border-color: #b2dfdb;
-  }
+  .pattern-section { margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #f0f0f0; }
+  .pattern-title { font-size: 14px; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 6px; }
+  .pattern-item { background: #fffbf0; border: 1px solid #ffe5a0; border-radius: 10px; padding: 12px 14px; margin-bottom: 8px; }
+  .pattern-item.safe { background: #f0fff4; border-color: #b2dfdb; }
   .pattern-item-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
-  .pattern-risk-tag {
-    font-size: 11px; font-weight: 700; padding: 2px 8px;
-    border-radius: 10px;
-  }
+  .pattern-risk-tag { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
   .tag-danger  { background: #fdecea; color: #c0392b; }
   .tag-caution { background: #fff7e0; color: #996600; }
   .tag-safe    { background: #e6f7ec; color: #1a7f44; }
@@ -335,51 +245,25 @@
   .pattern-item-desc { font-size: 12.5px; color: #666; line-height: 1.6; }
   .pattern-item-suggest { font-size: 12px; color: #4a7cf7; margin-top: 4px; font-weight: 500; }
 
-  /* 기존 결과 본문 */
   .result-section { margin-bottom: 1.25rem; }
-  .result-section-title {
-    font-size: 14px; font-weight: 700; margin-bottom: 0.6rem;
-    display: flex; align-items: center; gap: 6px; color: #333;
-  }
+  .result-section-title { font-size: 14px; font-weight: 700; margin-bottom: 0.6rem; display: flex; align-items: center; gap: 6px; color: #333; }
   .result-body { font-size: 14px; line-height: 1.8; color: #444; }
   .result-list { list-style: none; padding: 0; }
-  .result-list li {
-    padding: 6px 0 6px 16px; position: relative;
-    font-size: 14px; line-height: 1.6; color: #444;
-    border-bottom: 1px solid #f5f5f5;
-  }
+  .result-list li { padding: 6px 0 6px 16px; position: relative; font-size: 14px; line-height: 1.6; color: #444; border-bottom: 1px solid #f5f5f5; }
   .result-list li:last-child { border-bottom: none; }
   .result-list li::before { content: '•'; position: absolute; left: 0; color: #ccc; }
 
   .clause-list { list-style: none; padding: 0; }
-  .clause-list li {
-    display: flex; align-items: flex-start; gap: 10px;
-    padding: 8px 0; border-bottom: 1px solid #f5f5f5;
-    font-size: 13.5px; line-height: 1.6; color: #333;
-  }
+  .clause-list li { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f5f5f5; font-size: 13.5px; line-height: 1.6; color: #333; }
   .clause-list li:last-child { border-bottom: none; }
-  .clause-num {
-    flex-shrink: 0; background: #4a7cf7; color: #fff;
-    width: 20px; height: 20px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 11px; font-weight: 700; margin-top: 1px;
-  }
-  .clause-copy-inline {
-    flex-shrink: 0; margin-left: auto;
-    background: #f0f5ff; border: 1px solid #c5d8ff;
-    color: #4a7cf7; border-radius: 6px; padding: 3px 9px;
-    font-size: 11px; cursor: pointer; font-family: 'Noto Sans KR', sans-serif;
-  }
+  .clause-num { flex-shrink: 0; background: #4a7cf7; color: #fff; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; margin-top: 1px; }
+  .clause-copy-inline { flex-shrink: 0; margin-left: auto; background: #f0f5ff; border: 1px solid #c5d8ff; color: #4a7cf7; border-radius: 6px; padding: 3px 9px; font-size: 11px; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; }
   .clause-copy-inline:hover { background: #e0eaff; }
 
-  /* gangton */
-  .gangton-box {
-    background: #f9f9f9; border-radius: 10px; padding: 14px;
-    margin-bottom: 8px;
-  }
-  .gangton-ratio-row {
-    display: flex; align-items: center; gap: 12px; margin-bottom: 8px;
-  }
+  /* 깡통전세 */
+  .gangton-box { background: #f9f9f9; border-radius: 10px; padding: 14px; margin-bottom: 8px; }
+  .gangton-source { font-size: 11px; color: #4a7cf7; background: #f0f5ff; border-radius: 6px; padding: 4px 10px; margin-bottom: 10px; display: inline-block; }
+  .gangton-ratio-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
   .gangton-ratio-num { font-size: 24px; font-weight: 800; }
   .gangton-ratio-bar-wrap { flex: 1; }
   .gangton-ratio-bar-bg { background: #e0e0e0; border-radius: 4px; height: 10px; overflow: hidden; position: relative; }
@@ -389,12 +273,14 @@
   .gangton-stat span { font-weight: 700; color: #333; }
   .gangton-verdict { font-size: 13.5px; line-height: 1.6; color: #444; }
 
-  /* 추가 서류 요청 섹션 */
-  .followup-card {
-    background: #f0f5ff; border-radius: 12px;
-    padding: 1.25rem; margin-top: 1.25rem;
-    border: 1px solid #c5d8ff; display: none;
-  }
+  /* 실거래가 상세 테이블 */
+  .price-table { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 10px; }
+  .price-table th { background: #f5f5f5; padding: 6px 10px; text-align: left; font-weight: 600; color: #555; border-bottom: 1px solid #e0e0e0; }
+  .price-table td { padding: 6px 10px; border-bottom: 1px solid #f0f0f0; color: #444; }
+  .price-table tr:last-child td { border-bottom: none; }
+  .price-table tr:hover td { background: #fafafa; }
+
+  .followup-card { background: #f0f5ff; border-radius: 12px; padding: 1.25rem; margin-top: 1.25rem; border: 1px solid #c5d8ff; display: none; }
   .followup-card.show { display: block; }
   .followup-title { font-size: 14px; font-weight: 700; color: #2a5bd7; margin-bottom: 10px; }
   .followup-body { font-size: 13.5px; line-height: 1.7; color: #334; white-space: pre-wrap; }
@@ -402,40 +288,17 @@
 
   .loading { display: none; text-align: center; padding: 2rem; margin-top: 1.75rem; }
   .loading.show { display: block; }
-  .spinner {
-    width: 36px; height: 36px;
-    border: 3px solid #e0e0e0; border-top-color: #4a7cf7;
-    border-radius: 50%; animation: spin 0.8s linear infinite;
-    margin: 0 auto 1rem;
-  }
+  .spinner { width: 36px; height: 36px; border: 3px solid #e0e0e0; border-top-color: #4a7cf7; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 1rem; }
   @keyframes spin { to { transform: rotate(360deg); } }
   .loading p { font-size: 14px; color: #666; }
 
-  .error-msg {
-    background: #fdecea; border-radius: 10px;
-    padding: 12px 16px; font-size: 14px; color: #c0392b;
-    margin-top: 1.25rem; display: none;
-  }
+  .error-msg { background: #fdecea; border-radius: 10px; padding: 12px 16px; font-size: 14px; color: #c0392b; margin-top: 1.25rem; display: none; }
   .error-msg.show { display: block; }
 
-  .divider { height: 1px; background: #f0f0f0; margin: 1.25rem 0; }
-
-  /* 클립보드 토스트 */
-  .toast {
-    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-    background: #1a1a1a; color: #fff; padding: 10px 20px;
-    border-radius: 20px; font-size: 13px; font-weight: 600;
-    opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 9999;
-  }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1a1a1a; color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 13px; font-weight: 600; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 9999; }
   .toast.show { opacity: 1; }
 
-  /* 클로딩 스피너 (특약 생성용) */
-  .mini-spinner {
-    display: inline-block; width: 14px; height: 14px;
-    border: 2px solid #c5d8ff; border-top-color: #4a7cf7;
-    border-radius: 50%; animation: spin 0.7s linear infinite;
-    vertical-align: middle; margin-right: 6px;
-  }
+  .mini-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #c5d8ff; border-top-color: #4a7cf7; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
 
   @media (max-width: 500px) {
     .cost-grid { grid-template-columns: 1fr; }
@@ -460,7 +323,7 @@
     <p class="hint">🔒 브라우저에만 저장되며 외부로 전송되지 않아요. <a href="https://console.anthropic.com/settings/keys" target="_blank">API 키 발급받기 →</a></p>
   </div>
 
-  <!-- 파일 업로드 -->
+  <!-- 파일 업로드 + 건물 종류 선택 -->
   <div class="section-card">
     <div class="section-title">📂 서류 업로드</div>
     <div class="upload-card" id="drop-zone" onclick="document.getElementById('file-input').click()">
@@ -472,14 +335,26 @@
     </div>
     <div class="file-list" id="file-list"></div>
 
-    <!-- AI가 분석 후 누락 정보 요청하는 패널 -->
+    <!-- 건물 종류 선택 -->
+    <div class="building-type-section">
+      <label>🏢 건물 종류 선택 <span style="font-weight:400;color:#aaa">(실거래가 조회에 사용돼요)</span></label>
+      <div class="building-type-row" id="building-type-row">
+        <button class="building-type-btn" data-type="아파트" onclick="selectBuildingType(this)">🏢 아파트</button>
+        <button class="building-type-btn" data-type="연립다세대" onclick="selectBuildingType(this)">🏘️ 연립/다세대</button>
+        <button class="building-type-btn" data-type="오피스텔" onclick="selectBuildingType(this)">🏬 오피스텔</button>
+        <button class="building-type-btn" data-type="단독다가구" onclick="selectBuildingType(this)">🏠 단독/다가구</button>
+      </div>
+      <div class="building-type-note">※ 등기부등본이 있으면 AI가 자동으로 판단하지만, 직접 선택 시 더 정확해요</div>
+    </div>
+
+    <!-- 누락 정보 입력 패널 -->
     <div class="missing-panel" id="missing-panel">
       <div class="missing-panel-title">⚠️ 아래 정보가 서류에서 확인되지 않았어요</div>
       <div class="missing-fields" id="missing-fields"></div>
     </div>
   </div>
 
-  <!-- ── 자동 특약 생성 ── -->
+  <!-- 자동 특약 생성 -->
   <div class="section-card">
     <div class="section-title">✍️ 자동 특약 생성</div>
     <div class="clause-gen-section">
@@ -511,6 +386,14 @@
   </div>
 
   <div class="error-msg" id="error-msg"></div>
+
+  <!-- 분석 진행 상태 (실거래가 조회 포함) -->
+  <div class="price-search-status" id="price-search-status">
+    <div class="price-search-title">🔄 분석 진행 중...</div>
+    <div class="price-search-steps" id="price-search-steps"></div>
+    <div class="price-result-box" id="price-result-box"></div>
+  </div>
+
   <div class="loading" id="loading">
     <div class="spinner"></div>
     <p id="loading-text">AI가 서류를 꼼꼼히 분석 중이에요...<br>잠시만 기다려주세요 (30초~1분 소요)</p>
@@ -557,11 +440,16 @@
       <div id="dispute-items"></div>
     </div>
 
-    <!-- 깡통전세 -->
+    <!-- 깡통전세 (실거래가 기반) -->
     <div class="result-section" id="gangton-section" style="display:none">
-      <div class="result-section-title">🏷️ 깡통전세 분석</div>
+      <div class="result-section-title">🏷️ 깡통전세 분석 <span id="gangton-source-badge" style="font-size:11px;font-weight:400;color:#4a7cf7;margin-left:6px"></span></div>
       <div class="gangton-box">
         <div id="gangton-body"></div>
+      </div>
+      <!-- 실거래가 상세 내역 -->
+      <div id="price-detail-section" style="display:none;margin-top:10px">
+        <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:6px">📊 조회된 실거래 내역</div>
+        <div id="price-detail-table"></div>
       </div>
     </div>
 
@@ -607,6 +495,14 @@
 const files = [];
 let missingData = {};
 const selectedTags = new Set();
+let selectedBuildingType = '';
+
+/* ── 건물 종류 선택 ── */
+function selectBuildingType(btn) {
+  document.querySelectorAll('.building-type-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  selectedBuildingType = btn.dataset.type;
+}
 
 /* ── 파일 업로드 ── */
 function formatSize(b) {
@@ -709,7 +605,7 @@ async function generateClauses() {
         'anthropic-dangerous-direct-browser-access': 'true'
       },
       body: JSON.stringify({
-        model: 'claude-opus-4-5',
+        model: 'claude-sonnet-4-20250514',
         max_tokens: 1500,
         messages: [{
           role: 'user',
@@ -772,14 +668,27 @@ function renderMissingPanel(missingList) {
   panel.classList.add('show');
 }
 
-/* ── AI 분석 ── */
-function showError(msg) {
-  const el = document.getElementById('error-msg');
-  el.textContent = msg; el.classList.add('show');
+/* ── 진행 상태 업데이트 ── */
+function updateStep(steps, activeIdx, doneIdxList = []) {
+  const container = document.getElementById('price-search-steps');
+  container.innerHTML = steps.map((s, i) => {
+    let cls = 'price-step pending';
+    let icon = '⏳';
+    if (doneIdxList.includes(i)) { cls = 'price-step done'; icon = '✅'; }
+    else if (i === activeIdx)    { cls = 'price-step active'; icon = '🔄'; }
+    return `<div class="${cls}"><span class="price-step-icon">${icon}</span><span>${s}</span></div>`;
+  }).join('');
 }
-function hideError() { document.getElementById('error-msg').classList.remove('show'); }
 
-async function callAPI(apiKey, contentArr) {
+/* ── API 호출 ── */
+async function callAPI(apiKey, messages, tools = null) {
+  const body = {
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 4000,
+    messages
+  };
+  if (tools) body.tools = tools;
+
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -788,52 +697,177 @@ async function callAPI(apiKey, contentArr) {
       'anthropic-version': '2023-06-01',
       'anthropic-dangerous-direct-browser-access': 'true'
     },
-    body: JSON.stringify({
-      model: 'claude-opus-4-5',
-      max_tokens: 4000,
-      messages: [{ role: 'user', content: contentArr }]
-    })
+    body: JSON.stringify(body)
   });
   if (!resp.ok) {
     const err = await resp.json();
     throw new Error(err.error?.message || `API 오류 (${resp.status})`);
   }
-  const data = await resp.json();
-  return data.content.map(c => c.text || '').join('');
+  return await resp.json();
 }
 
-async function analyze() {
-  const apiKey = document.getElementById('api-key').value.trim();
-  if (!apiKey)       { showError('API 키를 입력해주세요.'); return; }
-  if (!files.length) { showError('분석할 파일을 업로드해주세요.'); return; }
+/* ── 웹서치 결과에서 텍스트 추출 ── */
+function extractText(content) {
+  return content.map(c => c.type === 'text' ? c.text : '').filter(Boolean).join('\n');
+}
 
-  hideError();
-  document.getElementById('loading').classList.add('show');
-  document.getElementById('result-card').classList.remove('show');
-  document.getElementById('analyze-btn').disabled = true;
+/* ── STEP 1: 서류에서 주소/건물정보 추출 ── */
+async function extractAddressFromDocs(apiKey, contentArr) {
+  const messages = [{
+    role: 'user',
+    content: [
+      ...contentArr,
+      {
+        type: 'text',
+        text: `첨부 서류에서 아래 정보를 추출해 JSON으로만 응답하세요. JSON 외 텍스트 없이.
 
-  try {
-    const contentArr = [];
-    for (const file of files) {
-      const b64 = await fileToBase64(file);
-      if (file.type === 'application/pdf') {
-        contentArr.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } });
-      } else {
-        contentArr.push({ type: 'image', source: { type: 'base64', media_type: file.type, data: b64 } });
+{
+  "address": "도로명 또는 지번 주소 (예: 서울시 강남구 역삼동 123-4 또는 서울시 강남구 테헤란로 123)",
+  "dong": "동 이름만 (예: 역삼동)",
+  "gu": "구 이름만 (예: 강남구)",
+  "si": "시/도 이름 (예: 서울특별시)",
+  "building_name": "건물명 또는 아파트 단지명 (없으면 null)",
+  "building_type": "서류에서 확인된 건물 종류: 아파트/연립다세대/오피스텔/단독다가구 중 하나 (불분명하면 null)",
+  "floor": "층수 (없으면 null)",
+  "area": "전용면적 숫자만 (㎡, 없으면 null)",
+  "lease_price": "전세금 또는 보증금 숫자만 (만원 단위, 없으면 null)",
+  "prior_debt": "서류에서 확인된 선순위채권/근저당 총액 숫자만 (만원, 없으면 null)"
+}`
       }
+    ]
+  }];
+
+  const data = await callAPI(apiKey, messages);
+  const raw = extractText(data.content).replace(/```json|```/g, '').trim();
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+/* ── STEP 2: 웹서치로 실거래가 조회 ── */
+async function searchRealPrice(apiKey, info, buildingType) {
+  const type = buildingType || info.building_type || '아파트';
+  const address = info.address || `${info.si || ''} ${info.gu || ''} ${info.dong || ''}`.trim();
+  const buildingName = info.building_name || '';
+  const area = info.area ? `${info.area}㎡` : '';
+
+  // 검색 쿼리 구성
+  const query = buildingName
+    ? `${buildingName} ${type} 실거래가 ${area} 최근`
+    : `${address} ${type} 실거래가 최근`;
+
+  const priceSearchQuery = `국토교통부 실거래가 ${address} ${buildingName} ${type} 매매 전세 2024 2025`;
+
+  const messages = [{
+    role: 'user',
+    content: `당신은 대한민국 부동산 실거래가 전문 분석가입니다.
+
+다음 부동산의 최근 실거래가를 웹서치로 조회해주세요:
+- 주소: ${address}
+- 건물명: ${buildingName || '(없음)'}
+- 건물 종류: ${type}
+- 전용면적: ${area || '(불명)'}
+
+웹서치 도구를 사용하여 국토교통부 실거래가 또는 네이버부동산, KB부동산 등에서 최근 1~2년 내 실거래 내역을 찾아주세요.
+
+조회 후 아래 JSON 형식으로만 응답하세요:
+{
+  "search_success": true/false,
+  "building_type_used": "${type}",
+  "recent_transactions": [
+    {
+      "date": "거래일 (예: 2024-11)",
+      "type": "매매 또는 전세",
+      "price": 숫자(만원),
+      "area": 숫자(㎡),
+      "floor": "층수 또는 null"
+    }
+  ],
+  "avg_sale_price": 숫자(만원) 또는 null,
+  "avg_lease_price": 숫자(만원) 또는 null,
+  "price_source": "출처 설명 (예: 국토부 실거래가 2024년 기준)",
+  "search_note": "조회 과정 메모 (못 찾은 경우 이유)"
+}`
+  }];
+
+  const webSearchTool = [{
+    type: 'web_search_20250305',
+    name: 'web_search'
+  }];
+
+  // 웹서치 포함 호출 (agentic loop)
+  let currentMessages = [...messages];
+  let priceResult = null;
+
+  for (let i = 0; i < 5; i++) {
+    const data = await callAPI(apiKey, currentMessages, webSearchTool);
+
+    if (data.stop_reason === 'end_turn') {
+      const raw = extractText(data.content).replace(/```json|```/g, '').trim();
+      try {
+        priceResult = JSON.parse(raw);
+      } catch {
+        priceResult = { search_success: false, search_note: '응답 파싱 실패', recent_transactions: [] };
+      }
+      break;
     }
 
-    const extraInfo = Object.entries(missingData)
-      .filter(([, v]) => v && v.trim())
-      .map(([k, v]) => `- ${k}: ${v}`)
-      .join('\n');
-    const extraText = extraInfo ? `\n\n[사용자가 추가로 입력한 정보]\n${extraInfo}` : '';
+    if (data.stop_reason === 'tool_use') {
+      // tool_use 블록들을 assistant 메시지에 추가
+      currentMessages.push({ role: 'assistant', content: data.content });
 
-    contentArr.push({
-      type: 'text',
-      text: `당신은 대한민국 부동산 임대차 계약 전문 AI입니다.${extraText}
+      // tool_result 만들기
+      const toolResults = data.content
+        .filter(c => c.type === 'tool_use')
+        .map(c => ({
+          type: 'tool_result',
+          tool_use_id: c.id,
+          content: c.type === 'web_search_20250305' ? '검색 실행됨' : (c.output || '')
+        }));
 
-첨부된 서류들을 분석하여 아래 JSON 형식으로만 응답해주세요. JSON 외 다른 텍스트는 절대 포함하지 마세요.
+      currentMessages.push({ role: 'user', content: toolResults });
+    } else {
+      // 예상치 못한 stop_reason
+      const raw = extractText(data.content).replace(/```json|```/g, '').trim();
+      try { priceResult = JSON.parse(raw); } catch { /* ignore */ }
+      break;
+    }
+  }
+
+  return priceResult || { search_success: false, search_note: '조회 실패', recent_transactions: [] };
+}
+
+/* ── STEP 3: 최종 종합 분석 ── */
+async function finalAnalysis(apiKey, contentArr, docInfo, priceData, buildingType) {
+  const extraInfo = Object.entries(missingData)
+    .filter(([, v]) => v && v.trim())
+    .map(([k, v]) => `- ${k}: ${v}`)
+    .join('\n');
+
+  const priceContext = priceData ? `
+[실거래가 조회 결과]
+- 건물종류: ${priceData.building_type_used || buildingType}
+- 조회 성공: ${priceData.search_success}
+- 최근 매매 평균가: ${priceData.avg_sale_price ? priceData.avg_sale_price.toLocaleString() + '만원' : '미확인'}
+- 최근 전세 평균가: ${priceData.avg_lease_price ? priceData.avg_lease_price.toLocaleString() + '만원' : '미확인'}
+- 출처: ${priceData.price_source || '없음'}
+- 비고: ${priceData.search_note || ''}
+- 거래내역: ${JSON.stringify(priceData.recent_transactions || [])}
+` : '';
+
+  const messages = [{
+    role: 'user',
+    content: [
+      ...contentArr,
+      {
+        type: 'text',
+        text: `당신은 대한민국 부동산 임대차 계약 전문 AI입니다.
+${extraInfo ? `\n[사용자 추가 입력]\n${extraInfo}` : ''}
+${priceContext}
+
+위 서류와 실거래가 데이터를 종합하여 아래 JSON 형식으로만 응답하세요. JSON 외 텍스트 없이.
 
 {
   "risk_level": "안전" | "주의" | "위험",
@@ -841,13 +875,13 @@ async function analyze() {
 
   "score": {
     "total": 숫자(0~100),
-    "description": "점수 설명 (예: 전반적으로 양호하나 선순위채권 부담 있음)",
+    "description": "점수 설명",
     "items": [
-      { "label": "임대인 신뢰도", "score": 숫자(0~20), "max": 20, "comment": "간단 코멘트" },
-      { "label": "권리 안전성",   "score": 숫자(0~20), "max": 20, "comment": "간단 코멘트" },
-      { "label": "계약 조건",     "score": 숫자(0~20), "max": 20, "comment": "간단 코멘트" },
-      { "label": "특약 완성도",   "score": 숫자(0~20), "max": 20, "comment": "간단 코멘트" },
-      { "label": "서류 완비",     "score": 숫자(0~20), "max": 20, "comment": "간단 코멘트" }
+      { "label": "임대인 신뢰도", "score": 숫자(0~20), "max": 20, "comment": "코멘트" },
+      { "label": "권리 안전성",   "score": 숫자(0~20), "max": 20, "comment": "코멘트" },
+      { "label": "계약 조건",     "score": 숫자(0~20), "max": 20, "comment": "코멘트" },
+      { "label": "특약 완성도",   "score": 숫자(0~20), "max": 20, "comment": "코멘트" },
+      { "label": "서류 완비",     "score": 숫자(0~20), "max": 20, "comment": "코멘트" }
     ]
   },
 
@@ -858,25 +892,15 @@ async function analyze() {
     "utilities_estimate": 숫자(만원) | null,
     "insurance_premium": 숫자(만원) | null,
     "total_monthly": 숫자(만원) | null,
-    "insurance_note": "전세보증보험 가입 조건 및 주의사항 (없으면 빈 문자열)"
+    "insurance_note": "전세보증보험 가입 조건 설명"
   },
 
   "clause_patterns": [
-    {
-      "text": "발견된 특약 또는 조항 내용 요약",
-      "risk": "위험" | "주의" | "안전",
-      "description": "이 조항이 임차인에게 미치는 영향",
-      "suggestion": "대안 또는 수정 방향 (안전한 경우 빈 문자열)"
-    }
+    { "text": "특약 내용", "risk": "위험|주의|안전", "description": "영향", "suggestion": "대안" }
   ],
 
   "dispute_cases": [
-    {
-      "title": "유사 분쟁 사례 제목",
-      "result": "임차인 승" | "임차인 패" | "합의",
-      "description": "사례 설명 (2~3줄)",
-      "lesson": "이 계약에서 주의할 점"
-    }
+    { "title": "사례 제목", "result": "임차인 승|임차인 패|합의", "description": "설명", "lesson": "주의점" }
   ],
 
   "gangton": {
@@ -885,55 +909,130 @@ async function analyze() {
     "lease_price": 숫자(만원) | null,
     "prior_debt": 숫자(만원) | null,
     "ratio": 숫자(%) | null,
-    "verdict": "깡통전세 분석 결과 설명"
+    "price_data_source": "실거래가 기반" | "AI 추정" | "사용자 입력",
+    "verdict": "깡통전세 분석 결과 (실거래가 데이터 활용 여부 명시)"
   },
-  "risks": ["위험요소1", "위험요소2"],
+
+  "risks": ["위험요소1"],
   "safe_reasons": ["안전 근거1"],
-  "special_clauses": ["필수 특약사항1", "필수 특약사항2"],
+  "special_clauses": ["필수 특약사항1"],
   "advice": "기타 조언",
   "missing_info": [
-    {
-      "key": "sale_price",
-      "label": "매매가(시세)",
-      "hint": "네이버 부동산 또는 국토부 실거래가에서 확인. 예: 35000",
-      "canUpload": false
-    }
+    { "key": "sale_price", "label": "매매가(시세)", "hint": "네이버 부동산에서 확인", "canUpload": false }
   ],
-  "additional_docs": "추가로 필요한 서류 및 이유 (없으면 빈 문자열)"
+  "additional_docs": "추가 필요 서류 설명"
 }
 
-규칙:
-- score.items 5개 항목은 반드시 포함
-- cost는 서류에서 확인 가능한 값만 숫자로. 확인 불가 시 null
-- insurance_premium: 전세금의 약 0.128% 연간 기준으로 월 환산 추정값 제공
-- clause_patterns: 계약서에서 발견된 특약/조항 1~5개 분석. 서류가 없으면 빈 배열
-- dispute_cases: 이 계약의 위험 요소와 유사한 실제 판례/사례 1~3개. 서류가 없으면 빈 배열
-- missing_info: 서류에서 확인 불가능하고 분석에 꼭 필요한 정보만 포함`
-    });
+깡통전세 판단 기준:
+- 실거래가 조회 성공: 해당 데이터로 전세가율 = (전세금 + 선순위채권) / 매매가 계산
+- 80% 이상: 위험, 70~80%: 주의, 70% 미만: 안전
+- 실거래가 미확인 시: AI 추정임을 명시하고 missing_info에 추가`
+      }
+    ]
+  }];
 
-    const rawText = await callAPI(apiKey, contentArr);
+  const data = await callAPI(apiKey, messages);
+  const raw = extractText(data.content).replace(/```json|```/g, '').trim();
+  return JSON.parse(raw);
+}
 
-    let result;
-    try {
-      const clean = rawText.replace(/```json|```/g, '').trim();
-      result = JSON.parse(clean);
-    } catch {
-      throw new Error('분석 결과를 읽는 중 오류가 발생했어요. 다시 시도해주세요.');
+/* ── 오류/로딩 ── */
+function showError(msg) {
+  const el = document.getElementById('error-msg');
+  el.textContent = msg; el.classList.add('show');
+}
+function hideError() { document.getElementById('error-msg').classList.remove('show'); }
+
+/* ── 메인 분석 ── */
+async function analyze() {
+  const apiKey = document.getElementById('api-key').value.trim();
+  if (!apiKey)       { showError('API 키를 입력해주세요.'); return; }
+  if (!files.length) { showError('분석할 파일을 업로드해주세요.'); return; }
+
+  hideError();
+  document.getElementById('result-card').classList.remove('show');
+  document.getElementById('analyze-btn').disabled = true;
+  document.getElementById('loading').classList.remove('show');
+
+  const statusEl = document.getElementById('price-search-status');
+  statusEl.classList.add('show');
+  statusEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  const STEPS = [
+    '서류에서 주소 및 계약 정보 추출 중',
+    '실거래가 웹서치 조회 중 (국토부·네이버 부동산)',
+    '깡통전세 위험도 계산 중',
+    '전체 계약 조건 종합 분석 중'
+  ];
+
+  try {
+    // 파일 base64 변환
+    const contentArr = [];
+    for (const file of files) {
+      const b64 = await fileToBase64(file);
+      if (file.type === 'application/pdf') {
+        contentArr.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: b64 } });
+      } else {
+        contentArr.push({ type: 'image', source: { type: 'base64', media_type: file.type, data: b64 } });
+      }
     }
+
+    // STEP 1: 주소 추출
+    updateStep(STEPS, 0, []);
+    const docInfo = await extractAddressFromDocs(apiKey, contentArr);
+
+    // 건물 종류 결정 (사용자 선택 우선)
+    const buildingType = selectedBuildingType || (docInfo && docInfo.building_type) || '아파트';
+
+    // STEP 2: 실거래가 웹서치
+    updateStep(STEPS, 1, [0]);
+    let priceData = null;
+
+    if (docInfo && (docInfo.address || docInfo.dong)) {
+      priceData = await searchRealPrice(apiKey, docInfo, buildingType);
+
+      // 조회 결과 미리보기
+      const resultBox = document.getElementById('price-result-box');
+      if (priceData && priceData.search_success && priceData.recent_transactions?.length > 0) {
+        const txList = priceData.recent_transactions.slice(0, 3)
+          .map(t => `${t.date} ${t.type} ${t.price?.toLocaleString()}만원 (${t.area}㎡)`)
+          .join(' / ');
+        resultBox.innerHTML = `✅ <strong>실거래가 조회 완료</strong> — ${priceData.price_source || ''}<br><span style="color:#555">${txList}</span>`;
+        resultBox.classList.add('show');
+      } else {
+        resultBox.innerHTML = `⚠️ 실거래가 자동 조회 실패 — AI 추정값으로 분석합니다<br><span style="font-size:11px;color:#aaa">${priceData?.search_note || ''}</span>`;
+        resultBox.classList.add('show');
+      }
+    } else {
+      document.getElementById('price-result-box').innerHTML = '⚠️ 주소를 서류에서 찾지 못해 실거래가 조회를 건너뜁니다';
+      document.getElementById('price-result-box').classList.add('show');
+    }
+
+    // STEP 3 & 4: 종합 분석
+    updateStep(STEPS, 2, [0, 1]);
+    updateStep(STEPS, 3, [0, 1, 2]);
+
+    const result = await finalAnalysis(apiKey, contentArr, docInfo, priceData, buildingType);
+
+    // 실거래가 상세 데이터를 결과에 병합
+    if (priceData) result._priceData = priceData;
+
+    updateStep(STEPS, -1, [0, 1, 2, 3]);
+    statusEl.classList.remove('show');
 
     renderResult(result);
     renderMissingPanel(result.missing_info || []);
 
   } catch (e) {
+    statusEl.classList.remove('show');
     showError('분석 중 오류가 발생했어요: ' + e.message);
   } finally {
-    document.getElementById('loading').classList.remove('show');
     document.getElementById('analyze-btn').disabled = false;
   }
 }
 
+/* ── 결과 렌더링 ── */
 function renderResult(r) {
-  /* 위험도 배지 */
   const badgeMap = {
     '안전': ['✅ 안전', 'risk-safe'],
     '주의': ['⚠️ 주의 필요', 'risk-caution'],
@@ -944,34 +1043,29 @@ function renderResult(r) {
   badge.textContent = label;
   badge.className = 'risk-badge ' + cls;
 
-  /* ① 점수 */
+  /* 점수 */
   if (r.score) {
     const s = r.score;
     const circleEl = document.getElementById('score-circle');
-    const cls = s.total >= 70 ? 'score-good' : s.total >= 50 ? 'score-mid' : 'score-bad';
-    circleEl.className = 'score-circle ' + cls;
+    const cc = s.total >= 70 ? 'score-good' : s.total >= 50 ? 'score-mid' : 'score-bad';
+    circleEl.className = 'score-circle ' + cc;
     document.getElementById('score-num').textContent = s.total;
     document.getElementById('score-desc').textContent = s.description || '';
-
-    const itemsEl = document.getElementById('score-items');
-    itemsEl.innerHTML = (s.items || []).map(item => {
+    document.getElementById('score-items').innerHTML = (s.items || []).map(item => {
       const pct = Math.round((item.score / item.max) * 100);
       const barCls = pct >= 70 ? 'bar-good' : pct >= 50 ? 'bar-mid' : 'bar-bad';
       return `
         <div class="score-item">
           <div class="score-item-label">${item.label}</div>
-          <div class="score-bar-bg">
-            <div class="score-bar-fill ${barCls}" style="width:${pct}%"></div>
-          </div>
+          <div class="score-bar-bg"><div class="score-bar-fill ${barCls}" style="width:${pct}%"></div></div>
           <div class="score-item-val" style="color:${pct>=70?'#1a7f44':pct>=50?'#996600':'#c0392b'}">${item.score}/${item.max}</div>
         </div>
-        ${item.comment ? `<div style="font-size:11px;color:#999;margin:-4px 0 4px 0;padding-left:0">${item.comment}</div>` : ''}
-      `;
+        ${item.comment ? `<div style="font-size:11px;color:#999;margin:-4px 0 4px 0">${item.comment}</div>` : ''}`;
     }).join('');
     document.getElementById('score-section').style.display = 'block';
   }
 
-  /* ② 실질 비용 */
+  /* 비용 */
   if (r.cost) {
     const c = r.cost;
     const costItems = [
@@ -987,76 +1081,75 @@ function renderResult(r) {
         <div class="cost-item-label">${x.label}</div>
         <div class="cost-item-val">${x.val.toLocaleString()} <span style="font-size:12px;font-weight:400">${x.unit}</span></div>
         ${x.sub ? `<div class="cost-item-sub">${x.sub}</div>` : ''}
-      </div>
-    `).join('');
+      </div>`).join('');
 
     if (c.total_monthly !== null && c.total_monthly !== undefined) {
       document.getElementById('cost-total').innerHTML = `
         <div class="cost-total-label">월 실질 부담액 합계</div>
-        <div class="cost-total-val">${c.total_monthly.toLocaleString()}만원</div>
-      `;
+        <div class="cost-total-val">${c.total_monthly.toLocaleString()}만원</div>`;
     }
-
     if (c.insurance_note) {
       document.getElementById('insurance-note').innerHTML = `📋 ${c.insurance_note}`;
       document.getElementById('insurance-note').style.display = 'block';
     } else {
       document.getElementById('insurance-note').style.display = 'none';
     }
-
     document.getElementById('cost-section').style.display = 'block';
   }
 
-  /* ③ 특약 패턴 */
+  /* 특약 패턴 */
   if (r.clause_patterns && r.clause_patterns.length) {
     document.getElementById('pattern-items').innerHTML = r.clause_patterns.map(p => {
-      const riskMap = {
-        '위험': ['tag-danger', '위험'],
-        '주의': ['tag-caution', '주의'],
-        '안전': ['tag-safe', '안전']
-      };
+      const riskMap = { '위험': ['tag-danger', '위험'], '주의': ['tag-caution', '주의'], '안전': ['tag-safe', '안전'] };
       const [tagCls, tagLabel] = riskMap[p.risk] || ['tag-caution', p.risk];
-      const itemCls = p.risk === '안전' ? 'pattern-item safe' : 'pattern-item';
       return `
-        <div class="${itemCls}">
+        <div class="${p.risk === '안전' ? 'pattern-item safe' : 'pattern-item'}">
           <div class="pattern-item-header">
             <span class="pattern-risk-tag ${tagCls}">${tagLabel}</span>
             <span class="pattern-item-text">${p.text}</span>
           </div>
           <div class="pattern-item-desc">${p.description}</div>
           ${p.suggestion ? `<div class="pattern-item-suggest">💡 ${p.suggestion}</div>` : ''}
-        </div>
-      `;
+        </div>`;
     }).join('');
     document.getElementById('pattern-section').style.display = 'block';
   }
 
-  /* ④ 분쟁 케이스 */
+  /* 분쟁 케이스 */
   if (r.dispute_cases && r.dispute_cases.length) {
     document.getElementById('dispute-items').innerHTML = r.dispute_cases.map(d => {
-      const resultMap = {
-        '임차인 승': ['dispute-win', '임차인 승'],
-        '임차인 패': ['dispute-lose', '임차인 패'],
-        '합의':      ['dispute-mixed', '합의']
-      };
-      const [badgeCls, badgeLabel] = resultMap[d.result] || ['dispute-mixed', d.result];
+      const rm = { '임차인 승': ['dispute-win','임차인 승'], '임차인 패': ['dispute-lose','임차인 패'], '합의': ['dispute-mixed','합의'] };
+      const [bc, bl] = rm[d.result] || ['dispute-mixed', d.result];
       return `
         <div class="dispute-case">
           <div class="dispute-case-header">
-            <span class="dispute-badge ${badgeCls}">${badgeLabel}</span>
+            <span class="dispute-badge ${bc}">${bl}</span>
             <span class="dispute-case-title">${d.title}</span>
           </div>
           <div class="dispute-case-body">${d.description}</div>
           <div class="dispute-case-lesson">📌 이 계약에서 주의: ${d.lesson}</div>
-        </div>
-      `;
+        </div>`;
     }).join('');
     document.getElementById('dispute-section').style.display = 'block';
   }
 
-  /* 깡통전세 */
+  /* 깡통전세 (실거래가 기반) */
   if (r.gangton) {
     const g = r.gangton;
+    const priceData = r._priceData;
+
+    // 데이터 출처 배지
+    const sourceBadge = document.getElementById('gangton-source-badge');
+    if (g.price_data_source === '실거래가 기반') {
+      sourceBadge.textContent = '🔵 실거래가 기반';
+      sourceBadge.style.color = '#1a7f44';
+    } else if (g.price_data_source === 'AI 추정') {
+      sourceBadge.textContent = '🟡 AI 추정값';
+      sourceBadge.style.color = '#996600';
+    } else {
+      sourceBadge.textContent = '';
+    }
+
     let html = '';
     if (g.possible && g.ratio !== null) {
       const ratio = g.ratio;
@@ -1076,45 +1169,55 @@ function renderResult(r) {
           ${g.sale_price  ? `<div class="gangton-stat">매매가 <span>${g.sale_price.toLocaleString()}만원</span></div>` : ''}
           ${g.lease_price ? `<div class="gangton-stat">전세금 <span>${g.lease_price.toLocaleString()}만원</span></div>` : ''}
           ${g.prior_debt  ? `<div class="gangton-stat">선순위채권 <span>${g.prior_debt.toLocaleString()}만원</span></div>` : ''}
-        </div>
-      `;
+        </div>`;
     }
     html += `<div class="gangton-verdict">${g.verdict}</div>`;
     document.getElementById('gangton-body').innerHTML = html;
     document.getElementById('gangton-section').style.display = 'block';
+
+    // 실거래 내역 테이블
+    if (priceData && priceData.recent_transactions && priceData.recent_transactions.length > 0) {
+      const rows = priceData.recent_transactions.map(t => `
+        <tr>
+          <td>${t.date || '-'}</td>
+          <td>${t.type || '-'}</td>
+          <td><strong>${t.price ? t.price.toLocaleString() + '만원' : '-'}</strong></td>
+          <td>${t.area ? t.area + '㎡' : '-'}</td>
+          <td>${t.floor || '-'}</td>
+        </tr>`).join('');
+      document.getElementById('price-detail-table').innerHTML = `
+        <table class="price-table">
+          <thead><tr><th>거래일</th><th>유형</th><th>가격</th><th>면적</th><th>층</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div style="font-size:11px;color:#aaa;margin-top:6px">출처: ${priceData.price_source || '웹서치'}</div>`;
+      document.getElementById('price-detail-section').style.display = 'block';
+    }
   }
 
-  /* 위험 요소 */
+  /* 위험/안전/특약/조언 */
   if (r.risks && r.risks.length) {
     document.getElementById('risks-list').innerHTML = r.risks.map(x => `<li>${x}</li>`).join('');
     document.getElementById('risks-section').style.display = 'block';
   }
-
-  /* 안전 근거 */
   if (r.safe_reasons && r.safe_reasons.length) {
     document.getElementById('safe-list').innerHTML = r.safe_reasons.map(x => `<li>${x}</li>`).join('');
     document.getElementById('safe-section').style.display = 'block';
   }
-
-  /* 필수 특약 */
   if (r.special_clauses && r.special_clauses.length) {
     document.getElementById('clauses-list').innerHTML = r.special_clauses.map((x, i) => `
       <li>
         <span class="clause-num">${i+1}</span>
         <span style="flex:1">${x}</span>
         <button class="clause-copy-inline" onclick="copyToClipboard(${JSON.stringify(x)})">복사</button>
-      </li>
-    `).join('');
+      </li>`).join('');
     document.getElementById('clauses-section').style.display = 'block';
   }
-
-  /* 조언 */
   if (r.advice) {
     document.getElementById('advice-body').textContent = r.advice;
     document.getElementById('advice-section').style.display = 'block';
   }
 
-  /* 추가 서류 */
   const followup = document.getElementById('followup-card');
   if (r.additional_docs && r.additional_docs.trim()) {
     document.getElementById('followup-body').textContent = r.additional_docs;
