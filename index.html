@@ -612,7 +612,7 @@
      - /api/realestate  → 국토부 실거래가 프록시
      - /api/claude      → Anthropic API 프록시
    ========================================================== */
-const API_BASE_URL = 'https://realestate-proxy-vercel.vercel.app';
+const API_BASE_URL = 'https://YOUR-PROJECT.vercel.app';
 
 /* ==========================================================
    🆕 전국 시군구 법정동코드 (250개)
@@ -1252,22 +1252,38 @@ async function searchRealPrice(apiKey, info, buildingType) {
 
       // 최소 한 쪽이라도 성공했으면 병합
       if (sale || rent) {
-        // 월별로 고르게 샘플링 (한 달치가 너무 많으면 다른 월이 안 보이는 문제 해결)
         const allTx = [
           ...(sale?.transactions || []),
           ...(rent?.transactions || []),
-        ].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+        ];
 
+        // 월·유형별로 그룹핑
         const txByMonth = {};
         for (const t of allTx) {
           const key = `${t.date}_${t.type}`;  // 예: "2026-03_매매"
           if (!txByMonth[key]) txByMonth[key] = [];
           txByMonth[key].push(t);
         }
-        // 각 월·유형 그룹에서 최대 3건씩 샘플링
+
+        // 결정적 샘플링: 각 월·유형 그룹에서 가격 중간값 기준 3건
+        // (가격 오름차순 정렬 후 하/중/상 = min, median, max 에 가까운 3건)
+        // → 매번 같은 입력엔 같은 결과 + 가격 분포도 보여줌
         const sampled = [];
         for (const key of Object.keys(txByMonth).sort().reverse()) {
-          sampled.push(...txByMonth[key].slice(0, 3));
+          const group = txByMonth[key];
+          // 금액 기준 정렬 (매매는 price, 전월세는 deposit)
+          const priced = group
+            .filter(t => (t.price || t.deposit))
+            .sort((a, b) => (a.price || a.deposit || 0) - (b.price || b.deposit || 0));
+          if (priced.length === 0) continue;
+          if (priced.length <= 3) {
+            sampled.push(...priced);
+          } else {
+            const lo = priced[0];
+            const mid = priced[Math.floor(priced.length / 2)];
+            const hi = priced[priced.length - 1];
+            sampled.push(lo, mid, hi);
+          }
         }
 
         const combined = {
@@ -1275,7 +1291,7 @@ async function searchRealPrice(apiKey, info, buildingType) {
           avg_sale_price: sale?.avg_sale_price || null,
           avg_deposit: rent?.avg_deposit || null,
           avg_lease_deposit: rent?.avg_lease_deposit || null,
-          transactions: sampled.slice(0, 20),  // 최대 20건까지 표시
+          transactions: sampled.slice(0, 30),
           totalCount: (sale?.totalCount || 0) + (rent?.totalCount || 0),
           filteredCount: (sale?.filteredCount || 0) + (rent?.filteredCount || 0),
           usedFilter: sale?.usedFilter || rent?.usedFilter || false,
@@ -1831,7 +1847,7 @@ function renderResult(r) {
           ${wd ? ` · 전체 조회 건수 <strong>${wd.totalCount}건</strong>` : ''}
           ${wd?.usedFilter ? ` · 건물/면적 필터링 후 <strong>${wd.filteredCount}건</strong>` : ''}
           <br>
-          💡 아래는 월별로 대표 거래를 샘플링한 결과입니다 (최신순 ↓)
+          💡 각 월·거래유형별로 <strong>최저가·중간가·최고가</strong> 대표 3건씩 샘플링 (최신월부터 ↓)
         </div>`;
 
       document.getElementById('price-detail-table').innerHTML = summaryHtml + `
