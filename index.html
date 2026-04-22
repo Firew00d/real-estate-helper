@@ -371,8 +371,8 @@
   <!-- API Key + 템플릿 상태 -->
   <div class="section-card api-key-section">
     <label>Anthropic API Key <span style="font-weight:400;color:#aaa;font-size:12px">(선택 사항)</span></label>
-    <input type="password" id="api-key" placeholder="Worker Secret에 저장되어 있으면 비워두세요" autocomplete="off" />
-    <p class="hint">🔒 이 앱은 Cloudflare Worker를 통해 Claude API를 호출하므로, <strong>여기에 API 키를 입력할 필요가 없어요</strong>. Worker의 <code>ANTHROPIC_API_KEY</code> Secret이 사용됩니다.</p>
+    <input type="password" id="api-key" placeholder="Vercel 환경변수에 저장되어 있으면 비워두세요" autocomplete="off" />
+    <p class="hint">🔒 이 앱은 Vercel Serverless Function을 통해 Claude API를 호출하므로, <strong>여기에 API 키를 입력할 필요가 없어요</strong>. Vercel의 <code>ANTHROPIC_API_KEY</code> 환경변수가 사용됩니다.</p>
 
     <div class="template-status loading" id="template-status">
       <span class="mini-spinner"></span>
@@ -562,12 +562,15 @@
 
 <script>
 /* ==========================================================
-   🆕 Cloudflare Worker URL 설정
+   🆕 Vercel Serverless API URL 설정
    ==========================================================
-   배포 후 본인의 Worker URL로 교체하세요.
-   예: 'https://realestate-proxy.my-name.workers.dev'
+   배포 후 본인의 Vercel URL로 교체하세요.
+   예: 'https://realestate-proxy.vercel.app'
+   엔드포인트:
+     - /api/realestate  → 국토부 실거래가 프록시
+     - /api/claude      → Anthropic API 프록시
    ========================================================== */
-const WORKER_URL = 'https://realestate-proxy.apoc5326.workers.dev';
+const API_BASE_URL = 'https://realestate-proxy-vercel.vercel.app';
 
 /* ==========================================================
    🆕 전국 시군구 법정동코드 (250개)
@@ -971,7 +974,7 @@ async function generateClauses() {
   body.innerHTML = '<div style="padding:12px;font-size:13px;color:#888"><span class="mini-spinner"></span>특약 생성 중...</div>';
   container.classList.add('show');
   try {
-    const resp = await fetch(`${WORKER_URL}/claude`, {
+    const resp = await fetch(`${API_BASE_URL}/api/claude`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1042,7 +1045,7 @@ async function callAPI(apiKey, messages, tools = null, maxTokens = 4000) {
   // Anthropic API는 Cloudflare Worker의 /claude 엔드포인트를 통해 호출
   // (API 키도 Worker Secret(ANTHROPIC_API_KEY)에 저장되어 브라우저에 노출되지 않음)
   // apiKey 파라미터는 사용되지 않지만 기존 호출부 호환을 위해 유지
-  const resp = await fetch(`${WORKER_URL}/claude`, {
+  const resp = await fetch(`${API_BASE_URL}/api/claude`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -1184,7 +1187,7 @@ async function fetchMolitPrice(info, buildingType, tradeType) {
   }
   if (info.area) params.set('area', String(info.area));
 
-  const url = `${WORKER_URL}/?${params.toString()}`;
+  const url = `${API_BASE_URL}/api/realestate?${params.toString()}`;
   const resp = await fetch(url);
   if (!resp.ok) return { error: `Worker HTTP ${resp.status}` };
   const json = await resp.json();
@@ -1196,7 +1199,7 @@ async function searchRealPrice(apiKey, info, buildingType) {
   const type = buildingType || info.building_type || '아파트';
 
   // 1) 국토부 API를 먼저 시도 (매매 + 전월세 병렬)
-  if (WORKER_URL && !WORKER_URL.includes('YOUR-WORKER-NAME')) {
+  if (API_BASE_URL && !API_BASE_URL.includes('YOUR-PROJECT')) {
     try {
       const [saleRes, rentRes] = await Promise.all([
         fetchMolitPrice(info, type, '매매'),
@@ -1490,8 +1493,8 @@ function hideError() { document.getElementById('error-msg').classList.remove('sh
 async function analyze() {
   const apiKey = document.getElementById('api-key').value.trim();
   if (!files.length) { showError('분석할 파일을 업로드해주세요.'); return; }
-  if (!WORKER_URL || WORKER_URL.includes('YOUR-WORKER-NAME')) {
-    showError('Worker URL이 설정되지 않았어요. index.html 상단의 WORKER_URL 상수를 교체하세요.');
+  if (!API_BASE_URL || API_BASE_URL.includes('YOUR-PROJECT')) {
+    showError('API URL이 설정되지 않았어요. index.html 상단의 API_BASE_URL 상수를 Vercel 주소로 교체하세요.');
     return;
   }
 
