@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>부동산 계약서 AI 분석</title>
+<title>부동산 계약서 AI 분석 (Gemini)</title>
 
 <!-- PizZip: .docx 압축 처리용 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -488,47 +488,35 @@
 <header>
   <span>🏠</span>
   <h1>부동산 계약서 AI 분석</h1>
-  <span class="subtitle">분석 + 임시 계약서 자동 생성</span>
+  <span class="subtitle">Powered by Gemini 2.0 Flash · 무료</span>
 </header>
 
 <div class="container">
 
   <!-- API Key + 템플릿 상태 -->
   <div class="section-card api-key-section">
-    <label>Anthropic API Key</label>
-    <input type="password" id="api-key" placeholder="sk-ant-..." autocomplete="off" />
-    <p class="hint">🔒 브라우저에만 저장되며 외부로 전송되지 않아요. <a href="https://console.anthropic.com/settings/keys" target="_blank">API 키 발급받기 →</a></p>
+    <label>Google Gemini API Key</label>
+    <input type="password" id="api-key" placeholder="AIzaSy..." autocomplete="off" />
+    <p class="hint">
+      🔒 브라우저에만 저장되며 외부로 전송되지 않아요. 
+      <a href="https://aistudio.google.com/apikey" target="_blank">API 키 발급받기 (무료) →</a><br>
+      💚 <strong>완전 무료</strong> · 신용카드 불필요 · Google 계정만 있으면 바로 사용 가능
+    </p>
 
     <div class="template-status loading" id="template-status">
       <span class="mini-spinner"></span>
       <span>계약서 템플릿(.docx) 로드 중...</span>
     </div>
 
-    <!-- 🆕 CORS 프록시 설정 -->
+    <!-- 진단 버튼만 남김 -->
     <div class="proxy-section">
       <div class="proxy-header">
-        <label style="flex:1">🌐 API 연결 방식</label>
+        <label style="flex:1">🔬 API 연결 상태 확인</label>
         <button type="button" class="btn btn-outline btn-sm" onclick="runApiDiagnostic()">🔬 연결 진단</button>
       </div>
-      <div class="proxy-options">
-        <label class="proxy-opt">
-          <input type="radio" name="proxy-mode" value="direct" checked onchange="onProxyModeChange(this)">
-          <span><strong>직접 연결</strong> (기본값) — 로컬/일반 환경에서 권장</span>
-        </label>
-        <label class="proxy-opt">
-          <input type="radio" name="proxy-mode" value="custom" onchange="onProxyModeChange(this)">
-          <span><strong>🌟 Cloudflare Worker 프록시</strong> (권장) — 무료, 5분 배포, GitHub Pages 등에서 확실히 작동</span>
-        </label>
-      </div>
-      <input type="text" id="custom-proxy" placeholder="https://your-worker.workers.dev/v1/messages" 
-             style="display:none;margin-top:8px" />
-      <button type="button" class="btn btn-outline btn-sm" id="worker-guide-btn"
-              style="display:none;margin-top:8px" onclick="showWorkerGuide()">
-        📘 Worker 배포 가이드 보기
-      </button>
-      <div class="proxy-hint" id="proxy-hint">
-        💡 <strong>CORS 에러가 계속 나면?</strong> 
-        "Cloudflare Worker 프록시" 옵션이 가장 확실한 해결책이에요 (무료, 영구 작동)
+      <div class="proxy-hint">
+        💡 Gemini API는 CORS를 지원하므로 프록시가 필요 없어요. 
+        진단 버튼을 눌러 API 키가 제대로 작동하는지 확인하세요.
       </div>
       <div class="diag-result" id="diag-result"></div>
     </div>
@@ -714,79 +702,6 @@
 </div>
 
 <div class="toast" id="toast">📋 복사되었어요!</div>
-
-<!-- 🆕 Cloudflare Worker 배포 가이드 모달 -->
-<div class="modal-overlay" id="worker-modal" onclick="closeWorkerGuide(event)">
-  <div class="modal-box" onclick="event.stopPropagation()">
-    <div class="modal-header">
-      <h2>📘 Cloudflare Worker 프록시 배포 가이드</h2>
-      <button class="modal-close" onclick="closeWorkerGuide()">✕</button>
-    </div>
-    <div class="modal-body">
-      <p class="modal-intro">
-        GitHub Pages에서 Anthropic API를 호출하려면 CORS 프록시가 필요해요.
-        <strong>Cloudflare Worker</strong>는 무료이고 5분이면 설정할 수 있어요.
-      </p>
-
-      <div class="guide-step">
-        <div class="guide-num">1</div>
-        <div class="guide-content">
-          <strong>Cloudflare 계정 생성 (무료)</strong>
-          <p><a href="https://dash.cloudflare.com/sign-up" target="_blank">https://dash.cloudflare.com/sign-up</a> 에서 가입</p>
-        </div>
-      </div>
-
-      <div class="guide-step">
-        <div class="guide-num">2</div>
-        <div class="guide-content">
-          <strong>Worker 생성</strong>
-          <p>대시보드 → 좌측 메뉴 <code>Workers & Pages</code> 클릭<br>
-          → <code>Create application</code> → <code>Create Worker</code><br>
-          → 이름 입력 (예: <code>anthropic-proxy</code>) → <code>Deploy</code> 클릭</p>
-        </div>
-      </div>
-
-      <div class="guide-step">
-        <div class="guide-num">3</div>
-        <div class="guide-content">
-          <strong>코드 붙여넣기</strong>
-          <p>배포 완료 후 <code>Edit code</code> 클릭 → 기본 코드 전체 삭제 → 아래 코드 복사해서 붙여넣기:</p>
-          <div class="code-box">
-            <button class="btn btn-outline btn-sm code-copy-btn" onclick="copyWorkerCode()">📋 코드 복사</button>
-            <pre id="worker-code"></pre>
-          </div>
-          <p style="margin-top:6px;font-size:11.5px;color:#888">
-            💡 코드 상단의 <code>ALLOWED_ORIGINS</code>에 본인 사이트 도메인이 이미 포함돼 있어요.
-            다른 도메인이 있다면 수정하세요.
-          </p>
-        </div>
-      </div>
-
-      <div class="guide-step">
-        <div class="guide-num">4</div>
-        <div class="guide-content">
-          <strong>Deploy 클릭 & URL 복사</strong>
-          <p>우측 상단 <code>Deploy</code> 버튼 클릭<br>
-          배포 완료 후 표시되는 URL 복사 (예: <code>https://anthropic-proxy.your-name.workers.dev</code>)</p>
-        </div>
-      </div>
-
-      <div class="guide-step">
-        <div class="guide-num">5</div>
-        <div class="guide-content">
-          <strong>앱에 URL 입력</strong>
-          <p>"커스텀 프록시" 입력란에 <strong>URL 끝에 <code>/v1/messages</code>를 붙여서</strong> 입력:<br>
-          <code>https://anthropic-proxy.your-name.workers.dev/v1/messages</code></p>
-        </div>
-      </div>
-
-      <div class="guide-tip">
-        <strong>💰 비용</strong>: Cloudflare Workers 무료 플랜은 하루 100,000 요청까지 무료. 개인 사용에 충분해요.<br>
-        <strong>🔒 보안</strong>: ALLOWED_ORIGINS 덕분에 다른 사이트에서는 이 Worker를 사용할 수 없어요.
-      </div>
-    </div>
-  </div>
-</div>
 
 <script>
 /* ==========================================================
@@ -1105,150 +1020,88 @@ function renderMissingPanel(missingList) {
 }
 
 /* ==========================================================
-   🆕 프록시 설정 관리
+   🆕 Gemini API 설정
    ========================================================== */
-const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages';
-let proxyMode = 'direct';
+const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-function onProxyModeChange(radio) {
-  proxyMode = radio.value;
-  const customInput = document.getElementById('custom-proxy');
-  const guideBtn = document.getElementById('worker-guide-btn');
-  const hint = document.getElementById('proxy-hint');
+function getGeminiEndpoint(useGrounding = false) {
+  return `${GEMINI_API_BASE}/${GEMINI_MODEL}:generateContent`;
+}
+
+/* ==========================================================
+   🆕 Anthropic 형식 → Gemini 형식 변환
+   - Anthropic: { role, content: [{type:'text'|'image'|'document', ...}] }
+   - Gemini:    { role, parts: [{text:...} | {inline_data:{mime_type, data}}] }
+   ========================================================== */
+function anthropicMessagesToGeminiContents(messages) {
+  const contents = [];
+  for (const msg of messages) {
+    const role = msg.role === 'assistant' ? 'model' : 'user';
+    const parts = [];
+    
+    if (typeof msg.content === 'string') {
+      parts.push({ text: msg.content });
+    } else if (Array.isArray(msg.content)) {
+      for (const block of msg.content) {
+        if (block.type === 'text') {
+          parts.push({ text: block.text });
+        } else if (block.type === 'image' && block.source?.type === 'base64') {
+          parts.push({
+            inline_data: {
+              mime_type: block.source.media_type,
+              data: block.source.data
+            }
+          });
+        } else if (block.type === 'document' && block.source?.type === 'base64') {
+          parts.push({
+            inline_data: {
+              mime_type: 'application/pdf',
+              data: block.source.data
+            }
+          });
+        }
+      }
+    }
+    if (parts.length > 0) contents.push({ role, parts });
+  }
+  return contents;
+}
+
+/* ==========================================================
+   🆕 Gemini 응답 → Anthropic 호환 형식으로 변환
+   - 기존 코드가 data.content[].text 형태를 기대하므로 맞춰서 반환
+   ========================================================== */
+function geminiResponseToAnthropicFormat(data) {
+  if (!data.candidates || data.candidates.length === 0) {
+    return { content: [{ type: 'text', text: '' }], stop_reason: 'end_turn' };
+  }
+  const candidate = data.candidates[0];
+  const parts = candidate.content?.parts || [];
+  const content = parts
+    .filter(p => p.text)
+    .map(p => ({ type: 'text', text: p.text }));
   
-  if (proxyMode === 'custom') {
-    customInput.style.display = 'block';
-    guideBtn.style.display = 'inline-block';
-    hint.innerHTML = '💡 직접 배포한 Cloudflare Worker의 URL을 입력하세요. 배포 방법을 모르시면 아래 <strong>"📘 Worker 배포 가이드 보기"</strong> 버튼을 눌러주세요.';
-  } else {
-    customInput.style.display = 'none';
-    guideBtn.style.display = 'none';
-    hint.innerHTML = '💡 <strong>CORS 에러가 계속 나면?</strong> "Cloudflare Worker 프록시" 옵션이 가장 확실한 해결책이에요 (무료, 영구 작동)';
-  }
-}
-
-function getApiEndpoint() {
-  if (proxyMode === 'custom') {
-    const custom = document.getElementById('custom-proxy').value.trim();
-    if (!custom) throw new Error('커스텀 프록시 URL을 입력하세요.\n📘 배포 가이드는 "커스텀 프록시" 선택 후 나타나는 버튼을 눌러주세요.');
-    return custom;
-  }
-  return ANTHROPIC_API_URL;
+  return {
+    content: content.length > 0 ? content : [{ type: 'text', text: '' }],
+    stop_reason: candidate.finishReason === 'STOP' ? 'end_turn' : 'end_turn',
+    model: data.modelVersion || GEMINI_MODEL
+  };
 }
 
 /* ==========================================================
-   🆕 Cloudflare Worker 코드 (배포용)
-   ========================================================== */
-const WORKER_CODE = [
-'/**',
-' * Anthropic API용 CORS 프록시 - Cloudflare Worker',
-' * 이 코드를 Cloudflare Worker에 붙여넣고 Deploy하세요.',
-' */',
-'',
-'// 허용할 도메인 목록 (본인 사이트 도메인 추가)',
-'const ALLOWED_ORIGINS = [',
-"  'https://firew00d.github.io',",
-"  'http://localhost:3000',",
-"  'http://localhost:5173',",
-"  'http://127.0.0.1:5500',",
-'];',
-'',
-"const TARGET_BASE = 'https://api.anthropic.com';",
-'',
-'export default {',
-'  async fetch(request) {',
-'    const url = new URL(request.url);',
-"    const origin = request.headers.get('Origin') || '';",
-"    const isAllowed = ALLOWED_ORIGINS.includes('*') || ALLOWED_ORIGINS.includes(origin);",
-'    const corsOrigin = isAllowed ? origin : ALLOWED_ORIGINS[0];',
-'',
-'    const corsHeaders = {',
-"      'Access-Control-Allow-Origin': corsOrigin,",
-"      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',",
-"      'Access-Control-Allow-Headers': 'Content-Type, x-api-key, anthropic-version, anthropic-dangerous-direct-browser-access, anthropic-beta',",
-"      'Access-Control-Max-Age': '86400',",
-"      'Access-Control-Expose-Headers': 'request-id, anthropic-ratelimit-requests-limit, anthropic-ratelimit-requests-remaining',",
-'    };',
-'',
-"    if (request.method === 'OPTIONS') {",
-'      return new Response(null, { status: 204, headers: corsHeaders });',
-'    }',
-'',
-'    if (!isAllowed && origin) {',
-"      return new Response(JSON.stringify({ error: 'Origin not allowed: ' + origin }), {",
-"        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }",
-'      });',
-'    }',
-'',
-'    const targetUrl = TARGET_BASE + url.pathname + url.search;',
-'    const forwardHeaders = new Headers();',
-'    for (const [key, value] of request.headers.entries()) {',
-'      const lower = key.toLowerCase();',
-"      if (lower.startsWith('cf-') || lower === 'host' || lower === 'origin' || lower === 'referer') continue;",
-'      forwardHeaders.set(key, value);',
-'    }',
-'',
-'    try {',
-'      const upstream = await fetch(targetUrl, {',
-'        method: request.method,',
-'        headers: forwardHeaders,',
-"        body: (request.method !== 'GET' && request.method !== 'HEAD') ? request.body : undefined,",
-'      });',
-'      const respHeaders = new Headers(upstream.headers);',
-'      for (const [key, value] of Object.entries(corsHeaders)) {',
-'        respHeaders.set(key, value);',
-'      }',
-'      return new Response(upstream.body, {',
-'        status: upstream.status,',
-'        statusText: upstream.statusText,',
-'        headers: respHeaders,',
-'      });',
-'    } catch (err) {',
-"      return new Response(JSON.stringify({ error: 'Proxy error: ' + err.message }), {",
-"        status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' }",
-'      });',
-'    }',
-'  },',
-'};'
-].join('\n');
-
-function showWorkerGuide() {
-  const modal = document.getElementById('worker-modal');
-  const codeEl = document.getElementById('worker-code');
-  if (codeEl && !codeEl.textContent.trim()) {
-    codeEl.textContent = WORKER_CODE;
-  }
-  modal.classList.add('show');
-  document.body.style.overflow = 'hidden';
-}
-function closeWorkerGuide(event) {
-  if (event && event.target !== event.currentTarget) return;
-  const modal = document.getElementById('worker-modal');
-  modal.classList.remove('show');
-  document.body.style.overflow = '';
-}
-function copyWorkerCode() {
-  navigator.clipboard.writeText(WORKER_CODE).then(() => {
-    const t = document.getElementById('toast');
-    t.textContent = '✅ Worker 코드가 복사되었어요! Cloudflare에 붙여넣으세요.';
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2500);
-  });
-}
-
-/* ==========================================================
-   🆕 연결 진단 도구
+   🆕 연결 진단 도구 (Gemini 버전)
    ========================================================== */
 async function runApiDiagnostic() {
   const apiKey = document.getElementById('api-key').value.trim();
   const resultEl = document.getElementById('diag-result');
   resultEl.className = 'diag-result info show';
-  resultEl.textContent = '🔄 진단 중... (약 10초 소요)';
+  resultEl.textContent = '🔄 진단 중... (약 5초 소요)';
   
   const results = [];
   const log = (msg) => { results.push(msg); resultEl.textContent = results.join('\n'); };
   
-  log('═══ API 연결 진단 ═══');
+  log('═══ Gemini API 연결 진단 ═══');
   log('');
   
   // 1. API 키 형식 검사
@@ -1258,45 +1111,37 @@ async function runApiDiagnostic() {
     resultEl.className = 'diag-result fail show';
     return;
   }
-  if (!apiKey.startsWith('sk-ant-')) {
-    log('    ⚠️ "sk-ant-"로 시작하지 않는 키 (잘못된 형식 가능성)');
+  if (!apiKey.startsWith('AIzaSy')) {
+    log('    ⚠️ "AIzaSy"로 시작하지 않는 키 (Gemini 키가 맞는지 확인)');
   } else {
     log('    ✅ 형식 OK (' + apiKey.length + '자)');
   }
   log('');
   
-  // 2. 네트워크 기본 연결
-  log('[2] 외부 네트워크 연결 (anthropic.com)');
+  // 2. Google 서버 연결
+  log('[2] Google API 서버 연결');
   try {
-    const r = await fetch('https://www.anthropic.com/favicon.ico', { mode: 'no-cors', cache: 'no-store' });
-    log('    ✅ anthropic.com 도메인 접근 가능');
+    await fetch('https://generativelanguage.googleapis.com/favicon.ico', { mode: 'no-cors', cache: 'no-store' });
+    log('    ✅ 서버 접근 가능');
   } catch (e) {
-    log('    ❌ anthropic.com 접근 실패: ' + e.message);
-    log('    → ISP/방화벽/VPN 문제일 수 있어요');
+    log('    ❌ 서버 접근 실패: ' + e.message);
   }
   log('');
   
-  // 3. 실제 API 호출 테스트 (최소한의 요청)
-  log('[3] Anthropic API 호출 테스트');
-  log('    (모드: ' + proxyMode + ')');
-  let endpoint;
-  try { endpoint = getApiEndpoint(); }
-  catch (e) { log('    ❌ ' + e.message); resultEl.className = 'diag-result fail show'; return; }
-  log('    엔드포인트: ' + endpoint.slice(0, 60) + '...');
+  // 3. 실제 API 호출 테스트
+  log('[3] Gemini API 호출 테스트');
+  log('    모델: ' + GEMINI_MODEL);
   
   try {
-    const resp = await fetch(endpoint, {
+    const resp = await fetch(getGeminiEndpoint(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
+        'x-goog-api-key': apiKey
       },
       body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 10,
-        messages: [{ role: 'user', content: 'hi' }]
+        contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
+        generationConfig: { maxOutputTokens: 10 }
       })
     });
     
@@ -1304,8 +1149,9 @@ async function runApiDiagnostic() {
     
     if (resp.ok) {
       const data = await resp.json();
+      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
       log('    ✅ API 호출 성공!');
-      log('    응답 모델: ' + (data.model || 'unknown'));
+      log('    응답: "' + text.trim() + '"');
       resultEl.className = 'diag-result pass show';
       log('');
       log('═══ 진단 결과: 정상 ═══');
@@ -1314,47 +1160,32 @@ async function runApiDiagnostic() {
     } else {
       const errText = await resp.text();
       log('    ❌ API 에러 응답:');
-      log('    ' + errText.slice(0, 200));
-      if (resp.status === 401) {
-        log('    → API 키가 잘못되었거나 만료되었어요');
+      log('    ' + errText.slice(0, 300));
+      if (resp.status === 400) {
+        log('    → 요청 형식 오류 가능성');
+      } else if (resp.status === 401 || resp.status === 403) {
+        log('    → API 키가 잘못되었거나 권한 없음');
+        log('    → https://aistudio.google.com/apikey 에서 새 키 발급');
       } else if (resp.status === 429) {
-        log('    → Rate limit 초과 (크레딧/한도 확인)');
-      } else if (resp.status === 403) {
-        log('    → 권한 문제 (조직/지역 제한 가능성)');
+        log('    → Rate limit 초과 (무료 한도: 분당 15회)');
       }
       resultEl.className = 'diag-result fail show';
     }
   } catch (e) {
     log('    ❌ 네트워크 에러: ' + e.message);
     log('');
-    log('═══ 진단 결과: CORS/네트워크 차단 ═══');
+    log('💡 해결 방법:');
     log('');
-    log('🌟 가장 확실한 해결책:');
-    log('   Cloudflare Worker 프록시 (무료, 5분 설정)');
-    log('   → 위에서 "Cloudflare Worker 프록시" 선택');
-    log('   → "📘 Worker 배포 가이드 보기" 클릭');
-    log('   → 안내대로 따라하면 영구적으로 해결됩니다');
-    log('');
-    log('🔧 다른 해결 방법 (부가적):');
-    log('');
-    log('1. 브라우저 확장프로그램 확인');
-    log('   - 광고차단기, 프라이버시 확장 일시 정지');
-    log('   - 시크릿/InPrivate 창에서 재시도');
-    log('');
-    log('2. 네트워크 환경 확인');
-    log('   - VPN 사용 중이면 끄고 재시도');
-    log('   - 회사/공공 Wi-Fi는 HTTPS 검사로 차단 가능');
-    log('   - 모바일 핫스팟에서 재시도');
-    log('');
-    log('3. 로컬 실행');
-    log('   - HTML 파일 다운로드해서 더블클릭으로 열기');
-    log('   - file:// 프로토콜은 CORS 제약이 적음');
+    log('1. 광고차단기/프라이버시 확장 일시 정지');
+    log('2. 시크릿/InPrivate 창에서 재시도');
+    log('3. VPN 끄고 재시도');
+    log('4. 모바일 핫스팟에서 재시도');
     resultEl.className = 'diag-result fail show';
   }
 }
 
 /* ==========================================================
-   진행 상태 / API 호출
+   진행 상태 / API 호출 (Gemini)
    ========================================================== */
 function updateStep(steps, activeIdx, doneIdxList = []) {
   const container = document.getElementById('price-search-steps');
@@ -1366,48 +1197,72 @@ function updateStep(steps, activeIdx, doneIdxList = []) {
   }).join('');
 }
 
+/**
+ * 🆕 Gemini API 호출 (Anthropic 호환 인터페이스 유지)
+ * 
+ * @param {string} apiKey - Gemini API 키
+ * @param {Array} messages - Anthropic 형식 메시지 배열
+ * @param {Array} tools - 도구 (web_search일 경우 Gemini의 google_search 사용)
+ * @param {number} maxTokens - 최대 출력 토큰
+ * @returns {Object} Anthropic 호환 응답 { content, stop_reason }
+ */
 async function callAPI(apiKey, messages, tools = null, maxTokens = 4000) {
-  const body = { model: 'claude-sonnet-4-20250514', max_tokens: maxTokens, messages };
-  if (tools) body.tools = tools;
-  const endpoint = getApiEndpoint();
+  const contents = anthropicMessagesToGeminiContents(messages);
+  
+  const body = {
+    contents,
+    generationConfig: {
+      maxOutputTokens: maxTokens,
+      temperature: 0.7
+    }
+  };
+  
+  // 웹 검색 도구가 요청되면 Gemini의 Google Search Grounding 사용
+  if (tools && tools.some(t => t.type?.includes('web_search') || t.name === 'web_search')) {
+    body.tools = [{ google_search: {} }];
+  }
+  
   let resp;
   try {
-    resp = await fetch(endpoint, {
+    resp = await fetch(getGeminiEndpoint(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true'
+        'x-goog-api-key': apiKey
       },
       body: JSON.stringify(body)
     });
   } catch (e) {
-    // 🆕 CORS / 네트워크 에러를 더 친절하게 안내
     throw new Error(
       'API 연결 실패 (' + e.message + ')\n\n' +
-      '🌟 가장 확실한 해결책: Cloudflare Worker 프록시 (무료, 5분 설정)\n' +
-      '   ① 상단 "Cloudflare Worker 프록시" 옵션 선택\n' +
-      '   ② "📘 Worker 배포 가이드 보기" 클릭\n' +
-      '   ③ 안내대로 따라하면 영구적으로 해결됩니다\n\n' +
-      '👉 먼저 "🔬 연결 진단" 버튼으로 원인을 확인하는 것도 좋아요.'
+      '👉 "🔬 연결 진단" 버튼으로 원인을 확인해보세요.\n' +
+      '   (주요 원인: 광고차단기, VPN, 방화벽)'
     );
   }
+  
   if (!resp.ok) {
-    let errMsg = `API 오류 (${resp.status})`;
+    let errMsg = `Gemini API 오류 (${resp.status})`;
     try {
       const err = await resp.json();
       errMsg = err.error?.message || errMsg;
     } catch {}
-    if (resp.status === 401) errMsg += '\n👉 API 키가 잘못되었거나 만료되었어요.';
-    if (resp.status === 429) errMsg += '\n👉 Rate limit 초과. 크레딧을 확인하거나 잠시 후 재시도.';
+    if (resp.status === 401 || resp.status === 403) {
+      errMsg += '\n👉 API 키가 잘못되었거나 만료. https://aistudio.google.com/apikey 에서 재발급';
+    }
+    if (resp.status === 429) {
+      errMsg += '\n👉 Rate limit 초과 (무료: 분당 15회, 일 1500회). 잠시 후 재시도.';
+    }
     throw new Error(errMsg);
   }
-  return await resp.json();
+  
+  const data = await resp.json();
+  return geminiResponseToAnthropicFormat(data);
 }
+
 function extractText(content) {
   return content.map(c => c.type === 'text' ? c.text : '').filter(Boolean).join('\n');
 }
+
 
 /* ==========================================================
    STEP 1: 서류 정보 추출
@@ -1468,19 +1323,35 @@ async function searchRealPrice(apiKey, info, buildingType) {
   const buildingName = info.building_name || '';
   const area = info.area ? `${info.area}㎡` : '';
 
-  const messages = [{
-    role: 'user',
-    content: `당신은 대한민국 부동산 실거래가 전문 분석가입니다.
-
-다음 부동산의 최근 실거래가를 웹서치로 조회해주세요:
+  // Gemini는 google_search grounding 도구를 한 번의 호출로 처리
+  // 1단계: 웹 검색으로 정보 수집
+  const searchQuery = `${address} ${buildingName} ${type} 실거래가 국토교통부 네이버부동산 최근 거래`;
+  
+  try {
+    // 1차: Google 검색 결과를 바탕으로 정보 요약 받기
+    const searchResp = await callAPI(apiKey, [{
+      role: 'user',
+      content: `다음 부동산의 최근 실거래가를 웹에서 찾아 요약해주세요.
 - 주소: ${address}
 - 건물명: ${buildingName || '(없음)'}
 - 건물 종류: ${type}
 - 전용면적: ${area || '(불명)'}
 
-웹서치로 국토교통부 실거래가나 네이버부동산 등에서 최근 1~2년 내 실거래 내역을 찾아주세요.
+국토교통부 실거래가, 네이버부동산, 호갱노노 등에서 최근 1~2년 내 매매/전세 거래 내역을 찾아 정리해주세요.
+각 거래의 날짜, 거래유형(매매/전세), 가격(만원), 면적, 층수를 포함해주세요.`
+    }], [{ type: 'web_search', name: 'web_search' }], 2000);
+    
+    const searchSummary = extractText(searchResp.content);
+    
+    // 2차: 요약을 바탕으로 구조화된 JSON 반환
+    const jsonResp = await callAPI(apiKey, [{
+      role: 'user',
+      content: `다음은 부동산 실거래가 검색 결과 요약입니다:
 
-조회 후 JSON 형식으로만 응답:
+${searchSummary}
+
+이 정보를 바탕으로 아래 JSON 형식으로만 응답하세요. JSON 외 다른 텍스트 없이.
+
 {
   "search_success": true/false,
   "building_type_used": "${type}",
@@ -1491,34 +1362,30 @@ async function searchRealPrice(apiKey, info, buildingType) {
   "avg_lease_price": 숫자(만원) 또는 null,
   "price_source": "출처 설명",
   "search_note": "조회 과정 메모"
-}`
-  }];
+}
 
-  const webSearchTool = [{ type: 'web_search_20250305', name: 'web_search' }];
-  let currentMessages = [...messages];
-  let priceResult = null;
-
-  for (let i = 0; i < 5; i++) {
-    const data = await callAPI(apiKey, currentMessages, webSearchTool);
-    if (data.stop_reason === 'end_turn') {
-      const raw = extractText(data.content).replace(/```json|```/g, '').trim();
-      try { priceResult = JSON.parse(raw); }
-      catch { priceResult = { search_success: false, search_note: '응답 파싱 실패', recent_transactions: [] }; }
-      break;
+데이터가 불충분하면 search_success를 false로 하고 recent_transactions를 빈 배열로.`
+    }], null, 2000);
+    
+    const raw = extractText(jsonResp.content).replace(/```json|```/g, '').trim();
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return { 
+        search_success: false, 
+        search_note: '응답 파싱 실패', 
+        recent_transactions: [],
+        raw_summary: searchSummary.slice(0, 500)
+      };
     }
-    if (data.stop_reason === 'tool_use') {
-      currentMessages.push({ role: 'assistant', content: data.content });
-      const toolResults = data.content
-        .filter(c => c.type === 'tool_use')
-        .map(c => ({ type: 'tool_result', tool_use_id: c.id, content: '검색 실행됨' }));
-      currentMessages.push({ role: 'user', content: toolResults });
-    } else {
-      const raw = extractText(data.content).replace(/```json|```/g, '').trim();
-      try { priceResult = JSON.parse(raw); } catch {}
-      break;
-    }
+  } catch (e) {
+    console.warn('실거래가 조회 실패:', e);
+    return { 
+      search_success: false, 
+      search_note: '조회 실패: ' + e.message, 
+      recent_transactions: [] 
+    };
   }
-  return priceResult || { search_success: false, search_note: '조회 실패', recent_transactions: [] };
 }
 
 /* ==========================================================
