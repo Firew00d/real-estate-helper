@@ -408,6 +408,79 @@
   .diag-result.pass { background: #e6f7ec; color: #1a7f44; border: 1px solid #b2dfdb; }
   .diag-result.fail { background: #fdecea; color: #c0392b; border: 1px solid #f5b7b1; }
   .diag-result.info { background: #f0f5ff; color: #2a5bd7; border: 1px solid #c5d8ff; }
+
+  /* 🆕 Worker 가이드 모달 */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    z-index: 10000; display: none; align-items: flex-start; justify-content: center;
+    padding: 2rem 1rem; overflow-y: auto;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-box {
+    background: #fff; border-radius: 16px; max-width: 720px; width: 100%;
+    margin: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    animation: slideIn 0.25s ease-out;
+  }
+  @keyframes slideIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1.25rem 1.5rem; border-bottom: 1px solid #eee;
+    position: sticky; top: 0; background: #fff; border-radius: 16px 16px 0 0;
+  }
+  .modal-header h2 { font-size: 17px; font-weight: 700; }
+  .modal-close {
+    background: #f5f5f5; border: none; width: 32px; height: 32px;
+    border-radius: 50%; font-size: 16px; cursor: pointer; color: #666;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .modal-close:hover { background: #e5e5e5; }
+  .modal-body { padding: 1.5rem; }
+  .modal-intro {
+    background: #f0f5ff; border-radius: 10px; padding: 12px 16px;
+    font-size: 13.5px; line-height: 1.7; color: #334; margin-bottom: 1.25rem;
+  }
+  .modal-intro strong { color: #2a5bd7; }
+
+  .guide-step {
+    display: flex; gap: 14px; margin-bottom: 1.25rem;
+    padding-bottom: 1.25rem; border-bottom: 1px solid #f0f0f0;
+  }
+  .guide-step:last-of-type { border-bottom: none; }
+  .guide-num {
+    flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%;
+    background: #4a7cf7; color: #fff; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+  }
+  .guide-content { flex: 1; }
+  .guide-content strong { font-size: 14px; color: #1a1a1a; display: block; margin-bottom: 6px; }
+  .guide-content p { font-size: 13px; color: #555; line-height: 1.7; }
+  .guide-content code {
+    background: #f5f5f5; border-radius: 4px; padding: 2px 6px;
+    font-size: 12px; font-family: 'Courier New', monospace; color: #d63384;
+  }
+  .guide-content a { color: #4a7cf7; text-decoration: underline; font-family: monospace; font-size: 12px; }
+
+  .code-box {
+    position: relative; background: #2d2d2d; border-radius: 8px;
+    padding: 36px 12px 12px 12px; margin-top: 8px;
+  }
+  .code-copy-btn {
+    position: absolute !important; top: 8px; right: 8px;
+    background: #4a7cf7 !important; color: #fff !important;
+    border: none !important; font-size: 11px !important;
+  }
+  .code-box pre {
+    color: #d4d4d4; font-family: 'Courier New', monospace;
+    font-size: 11px; line-height: 1.5; white-space: pre-wrap;
+    word-break: break-word; max-height: 300px; overflow-y: auto;
+  }
+
+  .guide-tip {
+    background: #fffbf0; border: 1px solid #ffe5a0; border-radius: 10px;
+    padding: 12px 16px; font-size: 12.5px; color: #664400; line-height: 1.7;
+    margin-top: 1rem;
+  }
 </style>
 </head>
 <body>
@@ -440,23 +513,22 @@
       <div class="proxy-options">
         <label class="proxy-opt">
           <input type="radio" name="proxy-mode" value="direct" checked onchange="onProxyModeChange(this)">
-          <span><strong>직접 연결</strong> (기본값) — Anthropic API 직통</span>
-        </label>
-        <label class="proxy-opt">
-          <input type="radio" name="proxy-mode" value="cors-anywhere" onchange="onProxyModeChange(this)">
-          <span><strong>CORS Anywhere 프록시</strong> — <a href="https://cors-anywhere.herokuapp.com/corsdemo" target="_blank">먼저 활성화 클릭 필요</a></span>
+          <span><strong>직접 연결</strong> (기본값) — 로컬/일반 환경에서 권장</span>
         </label>
         <label class="proxy-opt">
           <input type="radio" name="proxy-mode" value="custom" onchange="onProxyModeChange(this)">
-          <span><strong>커스텀 프록시</strong> (직접 운영하는 서버)</span>
+          <span><strong>🌟 Cloudflare Worker 프록시</strong> (권장) — 무료, 5분 배포, GitHub Pages 등에서 확실히 작동</span>
         </label>
       </div>
-      <input type="text" id="custom-proxy" placeholder="https://your-proxy.example.com/v1/messages" 
+      <input type="text" id="custom-proxy" placeholder="https://your-worker.workers.dev/v1/messages" 
              style="display:none;margin-top:8px" />
+      <button type="button" class="btn btn-outline btn-sm" id="worker-guide-btn"
+              style="display:none;margin-top:8px" onclick="showWorkerGuide()">
+        📘 Worker 배포 가이드 보기
+      </button>
       <div class="proxy-hint" id="proxy-hint">
-        💡 <strong>CORS 에러가 나면?</strong> 
-        ① 우측 "🔬 연결 진단" 버튼으로 원인 확인 
-        ② 프록시 옵션 선택 후 재시도
+        💡 <strong>CORS 에러가 계속 나면?</strong> 
+        "Cloudflare Worker 프록시" 옵션이 가장 확실한 해결책이에요 (무료, 영구 작동)
       </div>
       <div class="diag-result" id="diag-result"></div>
     </div>
@@ -642,6 +714,79 @@
 </div>
 
 <div class="toast" id="toast">📋 복사되었어요!</div>
+
+<!-- 🆕 Cloudflare Worker 배포 가이드 모달 -->
+<div class="modal-overlay" id="worker-modal" onclick="closeWorkerGuide(event)">
+  <div class="modal-box" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h2>📘 Cloudflare Worker 프록시 배포 가이드</h2>
+      <button class="modal-close" onclick="closeWorkerGuide()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-intro">
+        GitHub Pages에서 Anthropic API를 호출하려면 CORS 프록시가 필요해요.
+        <strong>Cloudflare Worker</strong>는 무료이고 5분이면 설정할 수 있어요.
+      </p>
+
+      <div class="guide-step">
+        <div class="guide-num">1</div>
+        <div class="guide-content">
+          <strong>Cloudflare 계정 생성 (무료)</strong>
+          <p><a href="https://dash.cloudflare.com/sign-up" target="_blank">https://dash.cloudflare.com/sign-up</a> 에서 가입</p>
+        </div>
+      </div>
+
+      <div class="guide-step">
+        <div class="guide-num">2</div>
+        <div class="guide-content">
+          <strong>Worker 생성</strong>
+          <p>대시보드 → 좌측 메뉴 <code>Workers & Pages</code> 클릭<br>
+          → <code>Create application</code> → <code>Create Worker</code><br>
+          → 이름 입력 (예: <code>anthropic-proxy</code>) → <code>Deploy</code> 클릭</p>
+        </div>
+      </div>
+
+      <div class="guide-step">
+        <div class="guide-num">3</div>
+        <div class="guide-content">
+          <strong>코드 붙여넣기</strong>
+          <p>배포 완료 후 <code>Edit code</code> 클릭 → 기본 코드 전체 삭제 → 아래 코드 복사해서 붙여넣기:</p>
+          <div class="code-box">
+            <button class="btn btn-outline btn-sm code-copy-btn" onclick="copyWorkerCode()">📋 코드 복사</button>
+            <pre id="worker-code"></pre>
+          </div>
+          <p style="margin-top:6px;font-size:11.5px;color:#888">
+            💡 코드 상단의 <code>ALLOWED_ORIGINS</code>에 본인 사이트 도메인이 이미 포함돼 있어요.
+            다른 도메인이 있다면 수정하세요.
+          </p>
+        </div>
+      </div>
+
+      <div class="guide-step">
+        <div class="guide-num">4</div>
+        <div class="guide-content">
+          <strong>Deploy 클릭 & URL 복사</strong>
+          <p>우측 상단 <code>Deploy</code> 버튼 클릭<br>
+          배포 완료 후 표시되는 URL 복사 (예: <code>https://anthropic-proxy.your-name.workers.dev</code>)</p>
+        </div>
+      </div>
+
+      <div class="guide-step">
+        <div class="guide-num">5</div>
+        <div class="guide-content">
+          <strong>앱에 URL 입력</strong>
+          <p>"커스텀 프록시" 입력란에 <strong>URL 끝에 <code>/v1/messages</code>를 붙여서</strong> 입력:<br>
+          <code>https://anthropic-proxy.your-name.workers.dev/v1/messages</code></p>
+        </div>
+      </div>
+
+      <div class="guide-tip">
+        <strong>💰 비용</strong>: Cloudflare Workers 무료 플랜은 하루 100,000 요청까지 무료. 개인 사용에 충분해요.<br>
+        <strong>🔒 보안</strong>: ALLOWED_ORIGINS 덕분에 다른 사이트에서는 이 Worker를 사용할 수 없어요.
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
 /* ==========================================================
@@ -968,27 +1113,127 @@ let proxyMode = 'direct';
 function onProxyModeChange(radio) {
   proxyMode = radio.value;
   const customInput = document.getElementById('custom-proxy');
-  customInput.style.display = proxyMode === 'custom' ? 'block' : 'none';
+  const guideBtn = document.getElementById('worker-guide-btn');
   const hint = document.getElementById('proxy-hint');
-  if (proxyMode === 'cors-anywhere') {
-    hint.innerHTML = '⚠️ <strong>CORS Anywhere 사용 전 반드시</strong> <a href="https://cors-anywhere.herokuapp.com/corsdemo" target="_blank">이 페이지</a>에서 "Request temporary access" 버튼을 클릭해야 해요. 무료 데모라 불안정할 수 있어요.';
-  } else if (proxyMode === 'custom') {
-    hint.innerHTML = '💡 직접 운영하는 CORS 프록시의 전체 엔드포인트 URL을 입력하세요. Cloudflare Workers 등으로 쉽게 구축할 수 있어요.';
+  
+  if (proxyMode === 'custom') {
+    customInput.style.display = 'block';
+    guideBtn.style.display = 'inline-block';
+    hint.innerHTML = '💡 직접 배포한 Cloudflare Worker의 URL을 입력하세요. 배포 방법을 모르시면 아래 <strong>"📘 Worker 배포 가이드 보기"</strong> 버튼을 눌러주세요.';
   } else {
-    hint.innerHTML = '💡 <strong>CORS 에러가 나면?</strong> ① 우측 "🔬 연결 진단" 버튼으로 원인 확인 ② 프록시 옵션 선택 후 재시도';
+    customInput.style.display = 'none';
+    guideBtn.style.display = 'none';
+    hint.innerHTML = '💡 <strong>CORS 에러가 계속 나면?</strong> "Cloudflare Worker 프록시" 옵션이 가장 확실한 해결책이에요 (무료, 영구 작동)';
   }
 }
 
 function getApiEndpoint() {
-  if (proxyMode === 'cors-anywhere') {
-    return 'https://cors-anywhere.herokuapp.com/' + ANTHROPIC_API_URL;
-  }
   if (proxyMode === 'custom') {
     const custom = document.getElementById('custom-proxy').value.trim();
-    if (!custom) throw new Error('커스텀 프록시 URL을 입력하세요.');
+    if (!custom) throw new Error('커스텀 프록시 URL을 입력하세요.\n📘 배포 가이드는 "커스텀 프록시" 선택 후 나타나는 버튼을 눌러주세요.');
     return custom;
   }
   return ANTHROPIC_API_URL;
+}
+
+/* ==========================================================
+   🆕 Cloudflare Worker 코드 (배포용)
+   ========================================================== */
+const WORKER_CODE = [
+'/**',
+' * Anthropic API용 CORS 프록시 - Cloudflare Worker',
+' * 이 코드를 Cloudflare Worker에 붙여넣고 Deploy하세요.',
+' */',
+'',
+'// 허용할 도메인 목록 (본인 사이트 도메인 추가)',
+'const ALLOWED_ORIGINS = [',
+"  'https://firew00d.github.io',",
+"  'http://localhost:3000',",
+"  'http://localhost:5173',",
+"  'http://127.0.0.1:5500',",
+'];',
+'',
+"const TARGET_BASE = 'https://api.anthropic.com';",
+'',
+'export default {',
+'  async fetch(request) {',
+'    const url = new URL(request.url);',
+"    const origin = request.headers.get('Origin') || '';",
+"    const isAllowed = ALLOWED_ORIGINS.includes('*') || ALLOWED_ORIGINS.includes(origin);",
+'    const corsOrigin = isAllowed ? origin : ALLOWED_ORIGINS[0];',
+'',
+'    const corsHeaders = {',
+"      'Access-Control-Allow-Origin': corsOrigin,",
+"      'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',",
+"      'Access-Control-Allow-Headers': 'Content-Type, x-api-key, anthropic-version, anthropic-dangerous-direct-browser-access, anthropic-beta',",
+"      'Access-Control-Max-Age': '86400',",
+"      'Access-Control-Expose-Headers': 'request-id, anthropic-ratelimit-requests-limit, anthropic-ratelimit-requests-remaining',",
+'    };',
+'',
+"    if (request.method === 'OPTIONS') {",
+'      return new Response(null, { status: 204, headers: corsHeaders });',
+'    }',
+'',
+'    if (!isAllowed && origin) {',
+"      return new Response(JSON.stringify({ error: 'Origin not allowed: ' + origin }), {",
+"        status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' }",
+'      });',
+'    }',
+'',
+'    const targetUrl = TARGET_BASE + url.pathname + url.search;',
+'    const forwardHeaders = new Headers();',
+'    for (const [key, value] of request.headers.entries()) {',
+'      const lower = key.toLowerCase();',
+"      if (lower.startsWith('cf-') || lower === 'host' || lower === 'origin' || lower === 'referer') continue;",
+'      forwardHeaders.set(key, value);',
+'    }',
+'',
+'    try {',
+'      const upstream = await fetch(targetUrl, {',
+'        method: request.method,',
+'        headers: forwardHeaders,',
+"        body: (request.method !== 'GET' && request.method !== 'HEAD') ? request.body : undefined,",
+'      });',
+'      const respHeaders = new Headers(upstream.headers);',
+'      for (const [key, value] of Object.entries(corsHeaders)) {',
+'        respHeaders.set(key, value);',
+'      }',
+'      return new Response(upstream.body, {',
+'        status: upstream.status,',
+'        statusText: upstream.statusText,',
+'        headers: respHeaders,',
+'      });',
+'    } catch (err) {',
+"      return new Response(JSON.stringify({ error: 'Proxy error: ' + err.message }), {",
+"        status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' }",
+'      });',
+'    }',
+'  },',
+'};'
+].join('\n');
+
+function showWorkerGuide() {
+  const modal = document.getElementById('worker-modal');
+  const codeEl = document.getElementById('worker-code');
+  if (codeEl && !codeEl.textContent.trim()) {
+    codeEl.textContent = WORKER_CODE;
+  }
+  modal.classList.add('show');
+  document.body.style.overflow = 'hidden';
+}
+function closeWorkerGuide(event) {
+  if (event && event.target !== event.currentTarget) return;
+  const modal = document.getElementById('worker-modal');
+  modal.classList.remove('show');
+  document.body.style.overflow = '';
+}
+function copyWorkerCode() {
+  navigator.clipboard.writeText(WORKER_CODE).then(() => {
+    const t = document.getElementById('toast');
+    t.textContent = '✅ Worker 코드가 복사되었어요! Cloudflare에 붙여넣으세요.';
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  });
 }
 
 /* ==========================================================
@@ -1082,27 +1327,28 @@ async function runApiDiagnostic() {
   } catch (e) {
     log('    ❌ 네트워크 에러: ' + e.message);
     log('');
-    log('═══ 진단 결과: CORS/네트워크 문제 ═══');
+    log('═══ 진단 결과: CORS/네트워크 차단 ═══');
     log('');
-    log('💡 해결 방법 (순서대로 시도):');
+    log('🌟 가장 확실한 해결책:');
+    log('   Cloudflare Worker 프록시 (무료, 5분 설정)');
+    log('   → 위에서 "Cloudflare Worker 프록시" 선택');
+    log('   → "📘 Worker 배포 가이드 보기" 클릭');
+    log('   → 안내대로 따라하면 영구적으로 해결됩니다');
     log('');
-    log('1️⃣ 브라우저 확장프로그램 확인');
-    log('   - 광고차단기(AdBlock, uBlock) 일시 정지');
-    log('   - 프라이버시 확장(Privacy Badger 등) 비활성화');
-    log('   - 시크릿/InPrivate 창으로 재시도');
+    log('🔧 다른 해결 방법 (부가적):');
     log('');
-    log('2️⃣ 네트워크 환경 확인');
+    log('1. 브라우저 확장프로그램 확인');
+    log('   - 광고차단기, 프라이버시 확장 일시 정지');
+    log('   - 시크릿/InPrivate 창에서 재시도');
+    log('');
+    log('2. 네트워크 환경 확인');
     log('   - VPN 사용 중이면 끄고 재시도');
-    log('   - 회사/공공 Wi-Fi에서 HTTPS 검사 프록시 차단');
-    log('   - 다른 네트워크(모바일 핫스팟)에서 재시도');
+    log('   - 회사/공공 Wi-Fi는 HTTPS 검사로 차단 가능');
+    log('   - 모바일 핫스팟에서 재시도');
     log('');
-    log('3️⃣ 프록시 옵션 사용');
-    log('   - 위에서 "CORS Anywhere 프록시" 선택');
-    log('   - 링크 클릭해 데모 활성화 후 재시도');
-    log('');
-    log('4️⃣ 로컬에서 실행');
-    log('   - HTML을 다운로드해서 로컬에서 열기');
-    log('   - file:// 프로토콜은 CORS 제약이 더 적어요');
+    log('3. 로컬 실행');
+    log('   - HTML 파일 다운로드해서 더블클릭으로 열기');
+    log('   - file:// 프로토콜은 CORS 제약이 적음');
     resultEl.className = 'diag-result fail show';
   }
 }
@@ -1140,8 +1386,11 @@ async function callAPI(apiKey, messages, tools = null, maxTokens = 4000) {
     // 🆕 CORS / 네트워크 에러를 더 친절하게 안내
     throw new Error(
       'API 연결 실패 (' + e.message + ')\n\n' +
-      '👉 상단 "🔬 연결 진단" 버튼을 눌러 원인을 확인해보세요.\n' +
-      '   (주요 원인: CORS 차단, 광고차단기, VPN, 회사 방화벽)'
+      '🌟 가장 확실한 해결책: Cloudflare Worker 프록시 (무료, 5분 설정)\n' +
+      '   ① 상단 "Cloudflare Worker 프록시" 옵션 선택\n' +
+      '   ② "📘 Worker 배포 가이드 보기" 클릭\n' +
+      '   ③ 안내대로 따라하면 영구적으로 해결됩니다\n\n' +
+      '👉 먼저 "🔬 연결 진단" 버튼으로 원인을 확인하는 것도 좋아요.'
     );
   }
   if (!resp.ok) {
