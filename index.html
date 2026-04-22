@@ -80,7 +80,7 @@
   .building-type-btn.selected { background: #4a7cf7; border-color: #4a7cf7; color: #fff; font-weight: 600; }
   .building-type-note { font-size: 11.5px; color: #aaa; margin-top: 6px; }
 
-  /* 계약 유형 선택 (신규) */
+  /* 계약 유형 선택 */
   .contract-type-section { margin-top: 1rem; }
   .contract-type-section label { font-size: 13px; font-weight: 600; color: #555; display: block; margin-bottom: 6px; }
   .contract-type-row { display: flex; gap: 8px; }
@@ -208,7 +208,7 @@
   .risk-caution { background: #fff7e0; color: #996600; }
   .risk-danger  { background: #fdecea; color: #c0392b; }
 
-  /* 계약서 생성 카드 (신규) */
+  /* 계약서 생성 카드 */
   .doc-gen-card {
     background: linear-gradient(135deg, #f0fff4 0%, #e6f7ec 100%);
     border: 1px solid #b2dfdb; border-radius: 12px;
@@ -363,7 +363,7 @@
 <header>
   <span>🏠</span>
   <h1>부동산 계약서 AI 분석</h1>
-  <span class="subtitle">분석 + 임시 계약서 자동 생성</span>
+  <span class="subtitle">국토부 실거래가 + 임시 계약서 자동 생성</span>
 </header>
 
 <div class="container">
@@ -401,14 +401,14 @@
     </div>
 
     <div class="building-type-section">
-      <label>🏢 건물 종류 선택 <span style="font-weight:400;color:#aaa">(실거래가 조회에 사용돼요)</span></label>
+      <label>🏢 건물 종류 선택 <span style="font-weight:400;color:#aaa">(국토부 API 조회에 사용돼요)</span></label>
       <div class="building-type-row" id="building-type-row">
         <button class="building-type-btn" data-type="아파트" onclick="selectBuildingType(this)">🏢 아파트</button>
         <button class="building-type-btn" data-type="연립다세대" onclick="selectBuildingType(this)">🏘️ 연립/다세대</button>
         <button class="building-type-btn" data-type="오피스텔" onclick="selectBuildingType(this)">🏬 오피스텔</button>
         <button class="building-type-btn" data-type="단독다가구" onclick="selectBuildingType(this)">🏠 단독/다가구</button>
       </div>
-      <div class="building-type-note">※ 등기부등본이 있으면 AI가 자동으로 판단하지만, 직접 선택 시 더 정확해요</div>
+      <div class="building-type-note">※ 등기부등본이 있으면 AI가 자동으로 판단하지만, 직접 선택 시 더 정확해요.</div>
     </div>
 
     <div class="missing-panel" id="missing-panel">
@@ -469,7 +469,7 @@
       <span class="risk-badge" id="risk-badge"></span>
     </div>
 
-    <!-- 🆕 계약서 자동 생성 카드 -->
+    <!-- 계약서 자동 생성 카드 -->
     <div class="doc-gen-card" id="doc-gen-card" style="display:none">
       <div class="doc-gen-header">
         <span style="font-size:22px">📝</span>
@@ -562,13 +562,185 @@
 
 <script>
 /* ==========================================================
+   🆕 Cloudflare Worker URL 설정
+   ==========================================================
+   배포 후 본인의 Worker URL로 교체하세요.
+   예: 'https://realestate-proxy.my-name.workers.dev'
+   ========================================================== */
+const WORKER_URL = 'https://realestate-proxy.apoc5326.workers.dev';
+
+/* ==========================================================
+   🆕 전국 시군구 법정동코드 (250개)
+   행정안전부 법정동코드 표준 2024 기준
+   ========================================================== */
+const SIGUNGU_CODES = {
+  // 서울특별시
+  "서울 종로구":"11110","서울 중구":"11140","서울 용산구":"11170",
+  "서울 성동구":"11200","서울 광진구":"11215","서울 동대문구":"11230",
+  "서울 중랑구":"11260","서울 성북구":"11290","서울 강북구":"11305",
+  "서울 도봉구":"11320","서울 노원구":"11350","서울 은평구":"11380",
+  "서울 서대문구":"11410","서울 마포구":"11440","서울 양천구":"11470",
+  "서울 강서구":"11500","서울 구로구":"11530","서울 금천구":"11545",
+  "서울 영등포구":"11560","서울 동작구":"11590","서울 관악구":"11620",
+  "서울 서초구":"11650","서울 강남구":"11680","서울 송파구":"11710",
+  "서울 강동구":"11740",
+  // 부산광역시
+  "부산 중구":"26110","부산 서구":"26140","부산 동구":"26170",
+  "부산 영도구":"26200","부산 부산진구":"26230","부산 동래구":"26260",
+  "부산 남구":"26290","부산 북구":"26320","부산 해운대구":"26350",
+  "부산 사하구":"26380","부산 금정구":"26410","부산 강서구":"26440",
+  "부산 연제구":"26470","부산 수영구":"26500","부산 사상구":"26530",
+  "부산 기장군":"26710",
+  // 대구광역시
+  "대구 중구":"27110","대구 동구":"27140","대구 서구":"27170",
+  "대구 남구":"27200","대구 북구":"27230","대구 수성구":"27260",
+  "대구 달서구":"27290","대구 달성군":"27710","대구 군위군":"27720",
+  // 인천광역시
+  "인천 중구":"28110","인천 동구":"28140","인천 미추홀구":"28177",
+  "인천 연수구":"28185","인천 남동구":"28200","인천 부평구":"28237",
+  "인천 계양구":"28245","인천 서구":"28260","인천 강화군":"28710",
+  "인천 옹진군":"28720",
+  // 광주광역시
+  "광주 동구":"29110","광주 서구":"29140","광주 남구":"29155",
+  "광주 북구":"29170","광주 광산구":"29200",
+  // 대전광역시
+  "대전 동구":"30110","대전 중구":"30140","대전 서구":"30170",
+  "대전 유성구":"30200","대전 대덕구":"30230",
+  // 울산광역시
+  "울산 중구":"31110","울산 남구":"31140","울산 동구":"31170",
+  "울산 북구":"31200","울산 울주군":"31710",
+  // 세종특별자치시
+  "세종":"36110","세종특별자치시":"36110",
+  // 경기도
+  "경기 수원 장안구":"41111","경기 수원 권선구":"41113",
+  "경기 수원 팔달구":"41115","경기 수원 영통구":"41117",
+  "경기 성남 수정구":"41131","경기 성남 중원구":"41133",
+  "경기 성남 분당구":"41135","경기 의정부시":"41150",
+  "경기 안양 만안구":"41171","경기 안양 동안구":"41173",
+  "경기 부천시":"41190","경기 광명시":"41210","경기 평택시":"41220",
+  "경기 동두천시":"41250","경기 안산 상록구":"41271",
+  "경기 안산 단원구":"41273","경기 고양 덕양구":"41281",
+  "경기 고양 일산동구":"41285","경기 고양 일산서구":"41287",
+  "경기 과천시":"41290","경기 구리시":"41310","경기 남양주시":"41360",
+  "경기 오산시":"41370","경기 시흥시":"41390","경기 군포시":"41410",
+  "경기 의왕시":"41430","경기 하남시":"41450",
+  "경기 용인 처인구":"41461","경기 용인 기흥구":"41463",
+  "경기 용인 수지구":"41465","경기 파주시":"41480","경기 이천시":"41500",
+  "경기 안성시":"41550","경기 김포시":"41570","경기 화성시":"41590",
+  "경기 광주시":"41610","경기 양주시":"41630","경기 포천시":"41650",
+  "경기 여주시":"41670","경기 연천군":"41800","경기 가평군":"41820",
+  "경기 양평군":"41830",
+  // 강원특별자치도
+  "강원 춘천시":"51110","강원 원주시":"51130","강원 강릉시":"51150",
+  "강원 동해시":"51170","강원 태백시":"51190","강원 속초시":"51210",
+  "강원 삼척시":"51230","강원 홍천군":"51720","강원 횡성군":"51730",
+  "강원 영월군":"51750","강원 평창군":"51760","강원 정선군":"51770",
+  "강원 철원군":"51780","강원 화천군":"51790","강원 양구군":"51800",
+  "강원 인제군":"51810","강원 고성군":"51820","강원 양양군":"51830",
+  // 충청북도
+  "충북 청주 상당구":"43111","충북 청주 서원구":"43112",
+  "충북 청주 흥덕구":"43113","충북 청주 청원구":"43114",
+  "충북 충주시":"43130","충북 제천시":"43150","충북 보은군":"43720",
+  "충북 옥천군":"43730","충북 영동군":"43740","충북 증평군":"43745",
+  "충북 진천군":"43750","충북 괴산군":"43760","충북 음성군":"43770",
+  "충북 단양군":"43800",
+  // 충청남도
+  "충남 천안 동남구":"44131","충남 천안 서북구":"44133",
+  "충남 공주시":"44150","충남 보령시":"44180","충남 아산시":"44200",
+  "충남 서산시":"44210","충남 논산시":"44230","충남 계룡시":"44250",
+  "충남 당진시":"44270","충남 금산군":"44710","충남 부여군":"44760",
+  "충남 서천군":"44770","충남 청양군":"44790","충남 홍성군":"44800",
+  "충남 예산군":"44810","충남 태안군":"44825",
+  // 전북특별자치도
+  "전북 전주 완산구":"52111","전북 전주 덕진구":"52113",
+  "전북 군산시":"52130","전북 익산시":"52140","전북 정읍시":"52180",
+  "전북 남원시":"52190","전북 김제시":"52210","전북 완주군":"52710",
+  "전북 진안군":"52720","전북 무주군":"52730","전북 장수군":"52740",
+  "전북 임실군":"52750","전북 순창군":"52770","전북 고창군":"52790",
+  "전북 부안군":"52800",
+  // 전라남도
+  "전남 목포시":"46110","전남 여수시":"46130","전남 순천시":"46150",
+  "전남 나주시":"46170","전남 광양시":"46230","전남 담양군":"46710",
+  "전남 곡성군":"46720","전남 구례군":"46730","전남 고흥군":"46770",
+  "전남 보성군":"46780","전남 화순군":"46790","전남 장흥군":"46800",
+  "전남 강진군":"46810","전남 해남군":"46820","전남 영암군":"46830",
+  "전남 무안군":"46840","전남 함평군":"46860","전남 영광군":"46870",
+  "전남 장성군":"46880","전남 완도군":"46890","전남 진도군":"46900",
+  "전남 신안군":"46910",
+  // 경상북도
+  "경북 포항 남구":"47111","경북 포항 북구":"47113",
+  "경북 경주시":"47130","경북 김천시":"47150","경북 안동시":"47170",
+  "경북 구미시":"47190","경북 영주시":"47210","경북 영천시":"47230",
+  "경북 상주시":"47250","경북 문경시":"47280","경북 경산시":"47290",
+  "경북 의성군":"47730","경북 청송군":"47750","경북 영양군":"47760",
+  "경북 영덕군":"47770","경북 청도군":"47820","경북 고령군":"47830",
+  "경북 성주군":"47840","경북 칠곡군":"47850","경북 예천군":"47900",
+  "경북 봉화군":"47920","경북 울진군":"47930","경북 울릉군":"47940",
+  // 경상남도
+  "경남 창원 의창구":"48121","경남 창원 성산구":"48123",
+  "경남 창원 마산합포구":"48125","경남 창원 마산회원구":"48127",
+  "경남 창원 진해구":"48129","경남 진주시":"48170","경남 통영시":"48220",
+  "경남 사천시":"48240","경남 김해시":"48250","경남 밀양시":"48270",
+  "경남 거제시":"48310","경남 양산시":"48330","경남 의령군":"48720",
+  "경남 함안군":"48730","경남 창녕군":"48740","경남 고성군":"48820",
+  "경남 남해군":"48840","경남 하동군":"48850","경남 산청군":"48860",
+  "경남 함양군":"48870","경남 거창군":"48880","경남 합천군":"48890",
+  // 제주특별자치도
+  "제주 제주시":"50110","제주 서귀포시":"50130",
+};
+
+const SIDO_ALIAS = {
+  '서울특별시':'서울','서울시':'서울',
+  '부산광역시':'부산','부산시':'부산',
+  '대구광역시':'대구','대구시':'대구',
+  '인천광역시':'인천','인천시':'인천',
+  '광주광역시':'광주','광주시':'광주',
+  '대전광역시':'대전','대전시':'대전',
+  '울산광역시':'울산','울산시':'울산',
+  '세종특별자치시':'세종',
+  '경기도':'경기',
+  '강원특별자치도':'강원','강원도':'강원',
+  '충청북도':'충북','충청남도':'충남',
+  '전북특별자치도':'전북','전라북도':'전북',
+  '전라남도':'전남',
+  '경상북도':'경북','경상남도':'경남',
+  '제주특별자치도':'제주','제주도':'제주',
+};
+
+/**
+ * 주소 파편에서 시군구 법정동코드(5자리)를 찾아냅니다.
+ * @returns {string|null}
+ */
+function findSigunguCode(si, gu) {
+  if (!gu) return null;
+  const sidoShort = si ? (SIDO_ALIAS[si.trim()] || si.trim()) : '';
+  const guClean = gu.trim().replace(/\s+/g, ' ');
+
+  if (sidoShort) {
+    const full1 = `${sidoShort} ${guClean}`;
+    if (SIGUNGU_CODES[full1]) return SIGUNGU_CODES[full1];
+
+    // "수원시 영통구" 같이 시+구가 함께 오는 경우
+    const parts = guClean.split(' ');
+    if (parts.length === 2) {
+      const full2 = `${sidoShort} ${parts[0].replace(/시$/, '')} ${parts[1]}`;
+      if (SIGUNGU_CODES[full2]) return SIGUNGU_CODES[full2];
+    }
+  }
+  const keys = Object.keys(SIGUNGU_CODES);
+  const endsWith = keys.find(k => k.endsWith(' ' + guClean) || k === guClean);
+  if (endsWith) return SIGUNGU_CODES[endsWith];
+  const contains = keys.find(k => k.replace(/\s+/g,'').includes(guClean.replace(/\s+/g,'')));
+  if (contains) return SIGUNGU_CODES[contains];
+  return null;
+}
+
+/* ==========================================================
    🆕 템플릿 & 필수 특약 설정
    ========================================================== */
 
-// GitHub raw URL에 템플릿 .docx 파일 업로드 후 경로 교체
-// 예: https://raw.githubusercontent.com/your-id/your-repo/main/templates/lease-template.docx
-const TEMPLATE_URL = 'https://raw.githubusercontent.com/Firew00d/real-estate-helper/main/contractsample.docx'
-// 필수 특약 리스트 (사용자 요구사항)
+const TEMPLATE_URL = 'https://raw.githubusercontent.com/Firew00d/real-estate-helper/main/contractsample.docx';
+
 const REQUIRED_CLAUSES = [
   {
     id: 'prior_debt_notice',
@@ -625,36 +797,32 @@ const selectedTags = new Set();
 let selectedBuildingType = '';
 let selectedContractType = '월세';
 let lastAnalysisResult = null;
-let templateBuffer = null; // ArrayBuffer of template.docx
+let templateBuffer = null;
 
 /* ==========================================================
-   🆕 템플릿 로드 (페이지 시작 시)
+   템플릿 로드
    ========================================================== */
 async function loadTemplate() {
   const statusEl = document.getElementById('template-status');
   try {
     if (TEMPLATE_URL.includes('YOUR_GITHUB_ID')) {
       statusEl.className = 'template-status error';
-      statusEl.innerHTML = '⚠️ 템플릿 URL이 설정되지 않았어요. 코드의 <code style="background:#fff;padding:2px 4px;border-radius:3px">TEMPLATE_URL</code> 변수를 GitHub raw URL로 수정하세요.';
+      statusEl.innerHTML = '⚠️ 템플릿 URL이 설정되지 않았어요.';
       return;
     }
-
     const resp = await fetch(TEMPLATE_URL);
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     templateBuffer = await resp.arrayBuffer();
-
     statusEl.className = 'template-status ready';
-    statusEl.innerHTML = '✅ 계약서 템플릿 로드 완료 (' + (templateBuffer.byteLength / 1024).toFixed(1) + 'KB) — 분석 후 자동 생성 가능';
+    statusEl.innerHTML = '✅ 계약서 템플릿 로드 완료 (' + (templateBuffer.byteLength / 1024).toFixed(1) + 'KB)';
   } catch(e) {
     statusEl.className = 'template-status error';
-    statusEl.innerHTML = '⚠️ 템플릿 로드 실패: ' + e.message + ' — 분석은 가능하지만 계약서 자동 생성은 비활성화됩니다.';
+    statusEl.innerHTML = '⚠️ 템플릿 로드 실패: ' + e.message;
   }
 }
 window.addEventListener('DOMContentLoaded', loadTemplate);
 
-/* ==========================================================
-   UI 선택 핸들러
-   ========================================================== */
+/* UI 선택 */
 function selectBuildingType(btn) {
   document.querySelectorAll('.building-type-btn').forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
@@ -666,9 +834,7 @@ function selectContractType(btn) {
   selectedContractType = btn.dataset.type;
 }
 
-/* ==========================================================
-   파일 업로드
-   ========================================================== */
+/* 파일 업로드 */
 function formatSize(b) {
   if (b < 1024) return b + 'B';
   if (b < 1048576) return (b/1024).toFixed(1) + 'KB';
@@ -685,8 +851,7 @@ function renderFileList() {
       <span class="file-size">${formatSize(f.size)}</span>
       ${willCompress ? '<span style="font-size:10px;font-weight:600;background:#fff7e0;color:#996600;padding:2px 6px;border-radius:10px">📦 압축 예정</span>' : ''}
       <button class="file-remove" onclick="removeFile(${i})">✕</button>
-    </div>
-    `;
+    </div>`;
   }).join('');
   document.getElementById('analyze-btn').disabled = files.length === 0;
 }
@@ -707,15 +872,10 @@ dz.addEventListener('drop', (e) => {
   renderFileList();
 });
 
-/* ==========================================================
-   🆕 이미지 자동 리사이즈 + 압축
-   - Anthropic API 제한: base64 5MB (≈ 원본 3.75MB)
-   - 긴 변 2000px 초과 시 리사이즈
-   - 용량 초과 시 JPEG 품질 점진적 하향
-   ========================================================== */
-const MAX_BASE64_BYTES = 5 * 1024 * 1024;           // 5MB
-const MAX_RAW_BYTES    = Math.floor(MAX_BASE64_BYTES * 0.74); // ≈ 3.88MB (base64 오버헤드 1.37x 고려)
-const MAX_DIMENSION    = 2000;                       // 긴 변 최대 px
+/* 이미지 압축 */
+const MAX_BASE64_BYTES = 5 * 1024 * 1024;
+const MAX_RAW_BYTES    = Math.floor(MAX_BASE64_BYTES * 0.74);
+const MAX_DIMENSION    = 2000;
 
 function loadImage(file) {
   return new Promise((res, rej) => {
@@ -726,11 +886,9 @@ function loadImage(file) {
     img.src = url;
   });
 }
-
 function canvasToBlob(canvas, type, quality) {
   return new Promise((res) => canvas.toBlob(res, type, quality));
 }
-
 function blobToBase64(blob) {
   return new Promise((res, rej) => {
     const r = new FileReader();
@@ -739,35 +897,24 @@ function blobToBase64(blob) {
     r.readAsDataURL(blob);
   });
 }
-
 async function compressImage(file) {
   const img = await loadImage(file);
-
-  // 긴 변 기준으로 리사이즈 비율 계산
   let { width, height } = img;
   const longSide = Math.max(width, height);
   const scale = longSide > MAX_DIMENSION ? MAX_DIMENSION / longSide : 1;
   width  = Math.round(width * scale);
   height = Math.round(height * scale);
-
   const canvas = document.createElement('canvas');
   canvas.width = width; canvas.height = height;
   const ctx = canvas.getContext('2d');
-  // 흰색 배경 (PNG 투명 영역이 검게 나오는 것 방지)
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, width, height);
   ctx.drawImage(img, 0, 0, width, height);
-
-  // JPEG로 변환하며 용량이 한도 이내가 될 때까지 품질 하향
   const qualities = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4];
   for (const q of qualities) {
     const blob = await canvasToBlob(canvas, 'image/jpeg', q);
-    if (blob && blob.size <= MAX_RAW_BYTES) {
-      return { blob, width, height, quality: q };
-    }
+    if (blob && blob.size <= MAX_RAW_BYTES) return { blob, width, height, quality: q };
   }
-
-  // 그래도 초과하면 추가 축소 (한 번 더)
   const smallerCanvas = document.createElement('canvas');
   smallerCanvas.width = Math.round(width * 0.7);
   smallerCanvas.height = Math.round(height * 0.7);
@@ -778,42 +925,23 @@ async function compressImage(file) {
   const finalBlob = await canvasToBlob(smallerCanvas, 'image/jpeg', 0.5);
   return { blob: finalBlob, width: smallerCanvas.width, height: smallerCanvas.height, quality: 0.5 };
 }
-
-/**
- * 파일을 base64로 변환.
- * - PDF: 그대로 (용량 초과 시 에러)
- * - 이미지: 필요 시 리사이즈/압축 후 JPEG로 변환
- * 반환: { base64, mediaType, wasCompressed }
- */
 async function fileToBase64(file) {
-  // PDF는 그대로 처리
   if (file.type === 'application/pdf') {
-    if (file.size > MAX_RAW_BYTES) {
-      throw new Error(`PDF 파일이 너무 커요 (${formatSize(file.size)}). 5MB 이하로 분할해주세요.`);
-    }
+    if (file.size > MAX_RAW_BYTES) throw new Error(`PDF 너무 큼 (${formatSize(file.size)})`);
     const base64 = await blobToBase64(file);
     return { base64, mediaType: 'application/pdf', wasCompressed: false };
   }
-
-  // 이미지: 먼저 크기 확인
   if (file.size <= MAX_RAW_BYTES) {
-    // 원본 그대로 보내도 안전
     const base64 = await blobToBase64(file);
     return { base64, mediaType: file.type, wasCompressed: false };
   }
-
-  // 용량 초과 → 압축
   const { blob } = await compressImage(file);
-  if (!blob || blob.size > MAX_RAW_BYTES) {
-    throw new Error('이미지 압축에 실패했어요. 더 작은 사진을 사용해주세요.');
-  }
+  if (!blob || blob.size > MAX_RAW_BYTES) throw new Error('이미지 압축 실패');
   const base64 = await blobToBase64(blob);
   return { base64, mediaType: 'image/jpeg', wasCompressed: true };
 }
 
-/* ==========================================================
-   태그 / 복사
-   ========================================================== */
+/* 태그 / 복사 */
 function toggleTag(btn) {
   const tag = btn.dataset.tag;
   if (selectedTags.has(tag)) { selectedTags.delete(tag); btn.classList.remove('selected'); }
@@ -827,23 +955,18 @@ function copyToClipboard(text) {
   });
 }
 
-/* ==========================================================
-   자동 특약 생성
-   ========================================================== */
+/* 자동 특약 생성 */
 async function generateClauses() {
   const apiKey = document.getElementById('api-key').value.trim();
   if (!apiKey) { alert('먼저 API 키를 입력해주세요.'); return; }
-
   const tags = [...selectedTags];
   const custom = document.getElementById('clause-custom').value.trim();
   const allTags = custom ? [...tags, custom] : tags;
   if (allTags.length === 0) { alert('상황을 하나 이상 선택하거나 직접 입력해주세요.'); return; }
-
   const container = document.getElementById('generated-clauses');
   const body = document.getElementById('generated-clauses-body');
-  body.innerHTML = '<div style="padding:12px;font-size:13px;color:#888"><span class="mini-spinner"></span>특약 문장을 생성 중이에요...</div>';
+  body.innerHTML = '<div style="padding:12px;font-size:13px;color:#888"><span class="mini-spinner"></span>특약 생성 중...</div>';
   container.classList.add('show');
-
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -878,16 +1001,13 @@ JSON 외 다른 텍스트 없이 응답하세요.`
           <div style="font-size:13.5px;line-height:1.6;color:#222">${c.clause}</div>
         </div>
         <button class="clause-copy-btn" onclick="copyToClipboard(${JSON.stringify(c.clause)})">복사</button>
-      </div>
-    `).join('');
+      </div>`).join('');
   } catch(e) {
     body.innerHTML = `<div style="padding:12px;font-size:13px;color:#c0392b">오류: ${e.message}</div>`;
   }
 }
 
-/* ==========================================================
-   누락 정보 패널
-   ========================================================== */
+/* 누락 정보 패널 */
 function renderMissingPanel(missingList) {
   if (!missingList || missingList.length === 0) {
     document.getElementById('missing-panel').classList.remove('show');
@@ -901,14 +1021,11 @@ function renderMissingPanel(missingList) {
       <input type="text" id="missing-${item.key}" value="${missingData[item.key] || ''}"
         placeholder="${item.hint || '직접 입력'}"
         oninput="missingData['${item.key}'] = this.value" />
-    </div>
-  `).join('');
+    </div>`).join('');
   panel.classList.add('show');
 }
 
-/* ==========================================================
-   진행 상태 / API 호출
-   ========================================================== */
+/* 진행 상태 */
 function updateStep(steps, activeIdx, doneIdxList = []) {
   const container = document.getElementById('price-search-steps');
   container.innerHTML = steps.map((s, i) => {
@@ -942,9 +1059,7 @@ function extractText(content) {
   return content.map(c => c.type === 'text' ? c.text : '').filter(Boolean).join('\n');
 }
 
-/* ==========================================================
-   STEP 1: 서류 정보 추출
-   ========================================================== */
+/* STEP 1: 서류 정보 추출 */
 async function extractAddressFromDocs(apiKey, contentArr) {
   const messages = [{
     role: 'user',
@@ -993,10 +1108,121 @@ async function extractAddressFromDocs(apiKey, contentArr) {
 }
 
 /* ==========================================================
-   STEP 2: 실거래가 웹서치
+   🆕 STEP 2: 국토부 실거래가 API 조회 (Cloudflare Worker 경유)
+   - 단독/다가구는 API 미발급 → Claude 웹서치 폴백
+   - Worker 응답 실패 시에도 Claude 웹서치 폴백
    ========================================================== */
+
+/** Worker 응답 포맷을 기존 UI가 기대하는 포맷으로 변환 */
+function normalizeWorkerToPriceData(wd, buildingType) {
+  if (!wd || !wd.ok) return null;
+
+  const tx = (wd.transactions || []).map(t => ({
+    date: t.date,
+    type: t.type,
+    price: t.price,                 // 매매가 (만원)
+    deposit: t.deposit,             // 전월세 보증금 (만원)
+    monthlyRent: t.monthlyRent,     // 월세 (만원)
+    area: t.area,
+    floor: t.floor,
+    name: t.name,
+    dong: t.dong,
+  }));
+
+  // UI 호환: recent_transactions 포맷
+  const recent = tx.map(t => ({
+    date: t.date,
+    type: t.type,
+    price: t.type === '매매' ? t.price : t.deposit,   // 보기 편하게 하나로 압축
+    area: t.area,
+    floor: t.floor,
+    _monthlyRent: t.monthlyRent,
+    _name: t.name,
+  }));
+
+  return {
+    search_success: true,
+    building_type_used: buildingType,
+    recent_transactions: recent,
+    avg_sale_price: wd.avg_sale_price || null,
+    avg_lease_price: wd.avg_lease_deposit || wd.avg_deposit || null,
+    price_source: '국토교통부 공공데이터포털 (' + (wd.months?.length || 0) + '개월, ' + wd.totalCount + '건)',
+    search_note: wd.usedFilter
+      ? `건물명/면적 기준 필터링: ${wd.filteredCount}/${wd.totalCount}건`
+      : `시군구 전체 거래 기준 ${wd.totalCount}건`,
+    _workerData: wd,
+  };
+}
+
+async function fetchMolitPrice(info, buildingType, tradeType) {
+  const code = findSigunguCode(info.si, info.gu);
+  if (!code) return { error: `법정동코드를 찾을 수 없어요 (${info.si || ''} ${info.gu || ''})` };
+
+  const params = new URLSearchParams({
+    sigunguCode: code,
+    buildingType,
+    tradeType,
+    months: '6',
+  });
+  // 단독/다가구는 건물명 필드 자체가 없으므로 전달하지 않음
+  if (info.building_name && buildingType !== '단독다가구') {
+    params.set('buildingName', info.building_name);
+  }
+  if (info.area) params.set('area', String(info.area));
+
+  const url = `${WORKER_URL}/?${params.toString()}`;
+  const resp = await fetch(url);
+  if (!resp.ok) return { error: `Worker HTTP ${resp.status}` };
+  const json = await resp.json();
+  if (!json.ok) return { error: json.error || 'Worker error' };
+  return json;
+}
+
 async function searchRealPrice(apiKey, info, buildingType) {
   const type = buildingType || info.building_type || '아파트';
+
+  // 1) 국토부 API를 먼저 시도 (매매 + 전월세 병렬)
+  if (WORKER_URL && !WORKER_URL.includes('YOUR-WORKER-NAME')) {
+    try {
+      const [saleRes, rentRes] = await Promise.all([
+        fetchMolitPrice(info, type, '매매'),
+        fetchMolitPrice(info, type, '전월세'),
+      ]);
+      const sale = saleRes && !saleRes.error ? saleRes : null;
+      const rent = rentRes && !rentRes.error ? rentRes : null;
+
+      // 최소 한 쪽이라도 성공했으면 병합
+      if (sale || rent) {
+        const combined = {
+          ok: true,
+          avg_sale_price: sale?.avg_sale_price || null,
+          avg_deposit: rent?.avg_deposit || null,
+          avg_lease_deposit: rent?.avg_lease_deposit || null,
+          transactions: [
+            ...(sale?.transactions || []),
+            ...(rent?.transactions || []),
+          ].sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 10),
+          totalCount: (sale?.totalCount || 0) + (rent?.totalCount || 0),
+          filteredCount: (sale?.filteredCount || 0) + (rent?.filteredCount || 0),
+          usedFilter: sale?.usedFilter || rent?.usedFilter || false,
+          months: sale?.months || rent?.months || [],
+        };
+        return normalizeWorkerToPriceData(combined, type);
+      }
+
+      // 둘 다 실패 → 폴백 진행
+      console.warn('MOLIT API failed for both sale and rent, falling back to Claude web search');
+    } catch (e) {
+      console.warn('MOLIT API exception:', e);
+    }
+  }
+
+  // 2) 폴백: Claude 웹서치 (기존 로직)
+  return await searchRealPriceViaWebSearch(apiKey, info, type);
+}
+
+/** 기존 Claude 웹서치 기반 조회 (폴백) */
+async function searchRealPriceViaWebSearch(apiKey, info, type) {
   const address = info.address || `${info.si || ''} ${info.gu || ''} ${info.dong || ''}`.trim();
   const buildingName = info.building_name || '';
   const area = info.area ? `${info.area}㎡` : '';
@@ -1026,11 +1252,9 @@ async function searchRealPrice(apiKey, info, buildingType) {
   "search_note": "조회 과정 메모"
 }`
   }];
-
   const webSearchTool = [{ type: 'web_search_20250305', name: 'web_search' }];
   let currentMessages = [...messages];
   let priceResult = null;
-
   for (let i = 0; i < 5; i++) {
     const data = await callAPI(apiKey, currentMessages, webSearchTool);
     if (data.stop_reason === 'end_turn') {
@@ -1054,21 +1278,21 @@ async function searchRealPrice(apiKey, info, buildingType) {
   return priceResult || { search_success: false, search_note: '조회 실패', recent_transactions: [] };
 }
 
-/* ==========================================================
-   STEP 3: 종합 분석
-   ========================================================== */
+/* STEP 3: 종합 분석 */
 async function finalAnalysis(apiKey, contentArr, docInfo, priceData, buildingType) {
   const extraInfo = Object.entries(missingData)
     .filter(([, v]) => v && v.trim())
     .map(([k, v]) => `- ${k}: ${v}`).join('\n');
 
   const priceContext = priceData ? `
-[실거래가 조회 결과]
+[실거래가 조회 결과 ${priceData._workerData ? '(국토부 공공 API)' : '(웹서치 기반)'}]
 - 건물종류: ${priceData.building_type_used || buildingType}
 - 조회 성공: ${priceData.search_success}
 - 최근 매매 평균가: ${priceData.avg_sale_price ? priceData.avg_sale_price.toLocaleString() + '만원' : '미확인'}
-- 최근 전세 평균가: ${priceData.avg_lease_price ? priceData.avg_lease_price.toLocaleString() + '만원' : '미확인'}
+- 최근 전세/보증금 평균: ${priceData.avg_lease_price ? priceData.avg_lease_price.toLocaleString() + '만원' : '미확인'}
 - 거래내역: ${JSON.stringify(priceData.recent_transactions || [])}
+- 출처: ${priceData.price_source || '-'}
+- 메모: ${priceData.search_note || '-'}
 ` : '';
 
   const messages = [{
@@ -1132,12 +1356,8 @@ ${priceContext}
   "additional_docs": "추가 필요 서류 설명"
 }
 
-📌 missing_info에는 반드시 계약서 작성에 필요하지만 서류에서 확인되지 않은 항목만 포함:
-- 임대인/임차인 이름(landlord_name, tenant_name)
-- 보증금(lease_price), 월세(monthly_rent), 계약금(down_payment), 잔금(balance_payment)
-- 계약 시작일(contract_start), 종료일(contract_end)
-- 주소(address)
-등 중 현재 null인 것만.`
+📌 price_data_source는 반드시 "실거래가 기반"으로 표기하세요 (국토부 공공 API로 조회되었으므로).
+미확인 시에만 "AI 추정"으로 표기.`
       }
     ]
   }];
@@ -1147,49 +1367,31 @@ ${priceContext}
   return JSON.parse(raw);
 }
 
-/* ==========================================================
-   🆕 필수 특약 누락 검사
-   ========================================================== */
+/* 필수 특약 누락 검사 */
 function detectMissingClauses(existingClauses, contractType) {
   const existingText = (existingClauses || []).join(' ');
   const missing = [];
   for (const clause of REQUIRED_CLAUSES) {
     if (!clause.category.includes(contractType)) continue;
-    // 키워드 중 하나도 안 나오면 누락으로 판단
     const found = clause.keywords.some(kw => existingText.includes(kw));
     if (!found) missing.push(clause);
   }
   return missing;
 }
-
-/* ==========================================================
-   🆕 누락 특약 미리보기
-   ========================================================== */
 function previewMissingClauses() {
   if (!lastAnalysisResult) return;
   const existing = lastAnalysisResult._docInfo?.existing_special_clauses || [];
   const missing = detectMissingClauses(existing, selectedContractType);
-
-  if (missing.length === 0) {
-    alert('✅ 모든 필수 특약이 이미 포함되어 있어요!');
-    return;
-  }
+  if (missing.length === 0) { alert('✅ 모든 필수 특약이 이미 포함되어 있어요!'); return; }
   const preview = missing.map(m => `【${m.title}】\n${m.content}`).join('\n\n─────────────\n\n');
   alert('📌 다음 특약이 자동 추가됩니다:\n\n' + preview);
 }
 
-/* ==========================================================
-   🆕 AI로 템플릿 채우기 + 특약 삽입
-   ========================================================== */
+/* 계약서 생성 */
 async function fillTemplateWithAI(apiKey, docInfo, missingClauses) {
-  // 1) 템플릿 압축 풀기
   const zip = await JSZip.loadAsync(templateBuffer);
   const documentXml = await zip.file('word/document.xml').async('string');
-
-  // 2) 사용자 입력 + 추출 정보 병합
   const mergedData = { ...docInfo, ...missingData };
-
-  // 3) AI에게 "XML 내 빈칸에 값 채워 넣기 + 특약 섹션에 누락 특약 추가" 요청
   const clauseTextList = missingClauses.map(c => `【${c.title}】\n${c.content}`).join('\n\n');
 
   const prompt = `당신은 Word .docx 파일의 내부 document.xml을 직접 수정하는 전문가입니다.
@@ -1206,74 +1408,49 @@ ${JSON.stringify(mergedData, null, 2)}
 ${clauseTextList || '(없음)'}
 
 작업 지시:
-1. document.xml 내부의 빈칸(연속된 공백, 밑줄 "___", "( )" 등)을 JSON 데이터의 적절한 값으로 채우세요.
-   - 임대인/임차인 이름, 주소, 주민번호, 연락처는 해당 항목에 정확히 매칭
-   - 금액(보증금/월세/계약금/잔금)은 한글+숫자 형식 ("금 일천만원정(\\10,000,000원)" 같은 표기가 원본에 있으면 그대로 유지)
-   - 날짜는 원본 형식(예: "____년 ____월 ____일")에 맞춰 삽입
-   - 주소/동호수 등은 docInfo.address + floor 조합
+1. document.xml 내부의 빈칸을 JSON 데이터의 적절한 값으로 채우세요.
 2. 특약사항 섹션이 있으면 그 부분의 <w:p> 요소들 사이에 누락 특약을 같은 스타일로 추가하세요.
-   - 특약 각 줄은 별도의 <w:p> 문단으로
-   - 기존 특약 스타일(runs, paragraph properties)을 최대한 모방
-3. 데이터에 값이 없는(null/빈) 항목은 원본 빈칸 그대로 유지
-4. XML 구조(태그, 네임스페이스, 속성)는 절대 망가뜨리지 말 것
-5. 응답은 **수정된 전체 document.xml 하나만** 출력. 설명/주석/코드블록 펜스 없이 순수 XML만.`;
+3. 데이터에 값이 없는 항목은 원본 빈칸 그대로 유지
+4. XML 구조는 절대 망가뜨리지 말 것
+5. 응답은 **수정된 전체 document.xml 하나만** 출력. 설명/주석/코드블록 펜스 없이.`;
 
   const resp = await callAPI(apiKey, [{ role: 'user', content: prompt }], null, 16000);
   let modifiedXml = extractText(resp.content).trim();
-
-  // 코드 펜스 제거
   modifiedXml = modifiedXml.replace(/^```xml\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
-
-  // XML 유효성 최소 검증
   if (!modifiedXml.startsWith('<?xml') && !modifiedXml.startsWith('<w:document')) {
-    // XML 선언이 없으면 원본에서 선언 부분을 앞에 붙이거나, 원본 반환
     if (documentXml.startsWith('<?xml')) {
       const declEnd = documentXml.indexOf('?>') + 2;
       const decl = documentXml.substring(0, declEnd);
       if (!modifiedXml.startsWith('<?xml')) modifiedXml = decl + '\n' + modifiedXml;
     }
   }
-
-  // 4) XML 다시 집어넣고 재압축
   zip.file('word/document.xml', modifiedXml);
-  const blob = await zip.generateAsync({
+  return await zip.generateAsync({
     type: 'blob',
     mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     compression: 'DEFLATE'
   });
-  return blob;
 }
-
-/* ==========================================================
-   🆕 계약서 생성 메인
-   ========================================================== */
 async function generateContract() {
   const apiKey = document.getElementById('api-key').value.trim();
   if (!apiKey) { alert('API 키를 입력해주세요.'); return; }
-  if (!templateBuffer) { alert('템플릿이 로드되지 않았어요. 페이지를 새로고침하거나 TEMPLATE_URL을 확인해주세요.'); return; }
+  if (!templateBuffer) { alert('템플릿이 로드되지 않았어요.'); return; }
   if (!lastAnalysisResult) { alert('먼저 분석을 진행해주세요.'); return; }
-
   const btn = document.getElementById('gen-doc-btn');
   const statusEl = document.getElementById('doc-gen-status');
   btn.disabled = true;
   btn.innerHTML = '<span class="mini-spinner"></span> 생성 중...';
   statusEl.classList.add('show');
-  statusEl.textContent = '🔄 템플릿 XML 수정 중 (AI가 빈칸 판단 + 특약 삽입)...';
-
+  statusEl.textContent = '🔄 템플릿 XML 수정 중...';
   try {
     const docInfo = lastAnalysisResult._docInfo || {};
     const existing = docInfo.existing_special_clauses || [];
     const missingClauses = detectMissingClauses(existing, selectedContractType);
-
     const blob = await fillTemplateWithAI(apiKey, docInfo, missingClauses);
-
     const today = new Date().toISOString().slice(0, 10);
-    const typeLabel = selectedContractType;
     const addr = (docInfo.building_name || docInfo.address || '부동산').replace(/[\\/:*?"<>|]/g, '').slice(0, 20);
-    const filename = `임시계약서_${typeLabel}_${addr}_${today}.docx`;
-
+    const filename = `임시계약서_${selectedContractType}_${addr}_${today}.docx`;
     saveAs(blob, filename);
-
     statusEl.style.background = '#e6f7ec';
     statusEl.style.color = '#1a7f44';
     statusEl.innerHTML = `✅ ${filename} 다운로드 완료! 누락 특약 ${missingClauses.length}개 자동 추가됨`;
@@ -1287,9 +1464,7 @@ async function generateContract() {
   }
 }
 
-/* ==========================================================
-   오류/로딩
-   ========================================================== */
+/* 오류 */
 function showError(msg) {
   const el = document.getElementById('error-msg');
   el.textContent = msg; el.classList.add('show');
@@ -1297,7 +1472,7 @@ function showError(msg) {
 function hideError() { document.getElementById('error-msg').classList.remove('show'); }
 
 /* ==========================================================
-   메인 분석
+   🆕 메인 분석 플로우 — 국토부 API 조회 단계 반영
    ========================================================== */
 async function analyze() {
   const apiKey = document.getElementById('api-key').value.trim();
@@ -1313,17 +1488,15 @@ async function analyze() {
   statusEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   const STEPS = [
-    '서류에서 주소 및 계약 정보 추출 중',
-    '실거래가 웹서치 조회 중',
-    '깡통전세 위험도 계산 중',
-    '전체 계약 조건 종합 분석 중'
+    '📎 파일 준비 중 (이미지 자동 압축)',
+    '📄 서류에서 주소 및 계약 정보 추출',
+    '🏛️ 국토교통부 실거래가 API 조회 (매매+전월세 병렬)',
+    '🧮 깡통전세 위험도 계산',
+    '🤖 전체 계약 조건 종합 분석',
   ];
 
   try {
-    // 🆕 파일 변환 (이미지는 자동 압축)
-    const PREP_STEP = '📎 파일 준비 중 (이미지 자동 압축 포함)';
-    const ALL_STEPS = [PREP_STEP, ...STEPS];
-    updateStep(ALL_STEPS, 0, []);
+    updateStep(STEPS, 0, []);
 
     const contentArr = [];
     let compressedCount = 0;
@@ -1336,42 +1509,45 @@ async function analyze() {
         contentArr.push({ type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } });
       }
     }
-
     if (compressedCount > 0) {
       const box = document.getElementById('price-result-box');
-      box.innerHTML = `📦 용량 제한(5MB)을 초과한 이미지 <strong>${compressedCount}장</strong>이 자동 압축되었어요`;
+      box.innerHTML = `📦 용량 제한 초과 이미지 <strong>${compressedCount}장</strong> 자동 압축 완료`;
       box.classList.add('show');
     }
 
-    updateStep(ALL_STEPS, 1, [0]);
+    updateStep(STEPS, 1, [0]);
     const docInfo = await extractAddressFromDocs(apiKey, contentArr);
     const buildingType = selectedBuildingType || (docInfo && docInfo.building_type) || '아파트';
 
-    updateStep(ALL_STEPS, 2, [0, 1]);
+    updateStep(STEPS, 2, [0, 1]);
     let priceData = null;
-    if (docInfo && (docInfo.address || docInfo.dong)) {
+    if (docInfo && (docInfo.address || docInfo.gu || docInfo.dong)) {
       priceData = await searchRealPrice(apiKey, docInfo, buildingType);
       const resultBox = document.getElementById('price-result-box');
+      const isApi = !!(priceData && priceData._workerData);
       if (priceData && priceData.search_success && priceData.recent_transactions?.length > 0) {
         const txList = priceData.recent_transactions.slice(0, 3)
-          .map(t => `${t.date} ${t.type} ${t.price?.toLocaleString()}만원 (${t.area}㎡)`).join(' / ');
-        resultBox.innerHTML = `✅ <strong>실거래가 조회 완료</strong><br><span style="color:#555">${txList}</span>`;
+          .map(t => `${t.date} ${t.type} ${t.price?.toLocaleString()}만원`).join(' · ');
+        const source = isApi
+          ? `🏛️ <strong>국토부 공공 API 조회 성공</strong> — ${priceData.search_note}`
+          : `🔍 웹서치 기반 조회 완료`;
+        resultBox.innerHTML = `${source}<br><span style="color:#555;font-size:12px">${txList}</span>`;
         resultBox.classList.add('show');
       } else {
-        resultBox.innerHTML = `⚠️ 실거래가 자동 조회 실패 — AI 추정값으로 분석`;
+        resultBox.innerHTML = `⚠️ 실거래가 조회 실패 — AI 추정값으로 분석 진행`;
         resultBox.classList.add('show');
       }
     }
 
-    updateStep(ALL_STEPS, 3, [0, 1, 2]);
-    updateStep(ALL_STEPS, 4, [0, 1, 2, 3]);
+    updateStep(STEPS, 3, [0, 1, 2]);
+    updateStep(STEPS, 4, [0, 1, 2, 3]);
 
     const result = await finalAnalysis(apiKey, contentArr, docInfo, priceData, buildingType);
     result._priceData = priceData;
     result._docInfo = docInfo;
     lastAnalysisResult = result;
 
-    updateStep(ALL_STEPS, -1, [0, 1, 2, 3, 4]);
+    updateStep(STEPS, -1, [0, 1, 2, 3, 4]);
     statusEl.classList.remove('show');
 
     renderResult(result);
@@ -1385,9 +1561,7 @@ async function analyze() {
   }
 }
 
-/* ==========================================================
-   결과 렌더링
-   ========================================================== */
+/* 결과 렌더링 */
 function renderResult(r) {
   const badgeMap = {
     '안전': ['✅ 안전', 'risk-safe'],
@@ -1399,7 +1573,6 @@ function renderResult(r) {
   badge.textContent = label;
   badge.className = 'risk-badge ' + cls;
 
-  // 🆕 계약서 생성 카드 노출
   const docGenCard = document.getElementById('doc-gen-card');
   if (templateBuffer) {
     docGenCard.style.display = 'block';
@@ -1415,7 +1588,6 @@ function renderResult(r) {
     }
   }
 
-  // 점수
   if (r.score) {
     const s = r.score;
     const circleEl = document.getElementById('score-circle');
@@ -1437,7 +1609,6 @@ function renderResult(r) {
     document.getElementById('score-section').style.display = 'block';
   }
 
-  // 비용
   if (r.cost) {
     const c = r.cost;
     const costItems = [
@@ -1467,7 +1638,6 @@ function renderResult(r) {
     document.getElementById('cost-section').style.display = 'block';
   }
 
-  // 특약 패턴
   if (r.clause_patterns && r.clause_patterns.length) {
     document.getElementById('pattern-items').innerHTML = r.clause_patterns.map(p => {
       const riskMap = { '위험': ['tag-danger', '위험'], '주의': ['tag-caution', '주의'], '안전': ['tag-safe', '안전'] };
@@ -1485,7 +1655,6 @@ function renderResult(r) {
     document.getElementById('pattern-section').style.display = 'block';
   }
 
-  // 분쟁
   if (r.dispute_cases && r.dispute_cases.length) {
     document.getElementById('dispute-items').innerHTML = r.dispute_cases.map(d => {
       const rm = { '임차인 승': ['dispute-win','임차인 승'], '임차인 패': ['dispute-lose','임차인 패'], '합의': ['dispute-mixed','합의'] };
@@ -1503,15 +1672,17 @@ function renderResult(r) {
     document.getElementById('dispute-section').style.display = 'block';
   }
 
-  // 깡통전세
   if (r.gangton) {
     const g = r.gangton;
     const priceData = r._priceData;
     const sourceBadge = document.getElementById('gangton-source-badge');
-    if (g.price_data_source === '실거래가 기반') {
-      sourceBadge.textContent = '🔵 실거래가 기반'; sourceBadge.style.color = '#1a7f44';
+    const isApi = !!(priceData && priceData._workerData);
+    if (isApi || g.price_data_source === '실거래가 기반') {
+      sourceBadge.textContent = '🏛️ 국토부 실거래가 기반';
+      sourceBadge.style.color = '#1a7f44';
     } else if (g.price_data_source === 'AI 추정') {
-      sourceBadge.textContent = '🟡 AI 추정값'; sourceBadge.style.color = '#996600';
+      sourceBadge.textContent = '🟡 AI 추정값';
+      sourceBadge.style.color = '#996600';
     }
 
     let html = '';
@@ -1541,9 +1712,13 @@ function renderResult(r) {
 
     if (priceData && priceData.recent_transactions && priceData.recent_transactions.length > 0) {
       const rows = priceData.recent_transactions.map(t => `
-        <tr><td>${t.date || '-'}</td><td>${t.type || '-'}</td>
-        <td><strong>${t.price ? t.price.toLocaleString() + '만원' : '-'}</strong></td>
-        <td>${t.area ? t.area + '㎡' : '-'}</td><td>${t.floor || '-'}</td></tr>`).join('');
+        <tr>
+          <td>${t.date || '-'}</td>
+          <td>${t.type || '-'}</td>
+          <td><strong>${t.price ? t.price.toLocaleString() + '만원' : '-'}</strong></td>
+          <td>${t.area ? t.area + '㎡' : '-'}</td>
+          <td>${t.floor || '-'}</td>
+        </tr>`).join('');
       document.getElementById('price-detail-table').innerHTML = `
         <table class="price-table">
           <thead><tr><th>거래일</th><th>유형</th><th>가격</th><th>면적</th><th>층</th></tr></thead>
@@ -1553,7 +1728,6 @@ function renderResult(r) {
     }
   }
 
-  // 위험/안전/특약/조언
   if (r.risks && r.risks.length) {
     document.getElementById('risks-list').innerHTML = r.risks.map(x => `<li>${x}</li>`).join('');
     document.getElementById('risks-section').style.display = 'block';
