@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>부동산 계약서 AI 분석 (Gemini)</title>
+<title>부동산 계약서 AI 분석</title>
 
 <!-- PizZip: .docx 압축 처리용 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -56,22 +56,17 @@
   .hint { font-size: 12px; color: #999; margin-top: 5px; }
   .hint a { color: #4a7cf7; }
 
+  /* 템플릿 상태 표시 */
   .template-status {
     margin-top: 1rem; padding: 10px 14px;
     border-radius: 8px; font-size: 12.5px;
     display: flex; align-items: center; gap: 8px;
-    flex-wrap: wrap;
   }
   .template-status.loading { background: #f0f5ff; color: #4a7cf7; }
   .template-status.ready { background: #e6f7ec; color: #1a7f44; }
   .template-status.error { background: #fdecea; color: #c0392b; }
-  .template-status button {
-    margin-left: auto; background: #fff; border: 1px solid currentColor;
-    color: inherit; padding: 4px 10px; border-radius: 6px; font-size: 11px;
-    cursor: pointer; font-family: 'Noto Sans KR', sans-serif;
-  }
-  .template-status button:hover { opacity: 0.8; }
 
+  /* 건물 종류 선택 */
   .building-type-section { margin-top: 1rem; }
   .building-type-section label { font-size: 13px; font-weight: 600; color: #555; display: block; margin-bottom: 6px; }
   .building-type-row { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -85,6 +80,7 @@
   .building-type-btn.selected { background: #4a7cf7; border-color: #4a7cf7; color: #fff; font-weight: 600; }
   .building-type-note { font-size: 11.5px; color: #aaa; margin-top: 6px; }
 
+  /* 계약 유형 선택 (신규) */
   .contract-type-section { margin-top: 1rem; }
   .contract-type-section label { font-size: 13px; font-weight: 600; color: #555; display: block; margin-bottom: 6px; }
   .contract-type-row { display: flex; gap: 8px; }
@@ -97,6 +93,7 @@
   .contract-type-btn:hover { border-color: #4a7cf7; color: #2a5bd7; }
   .contract-type-btn.selected { background: #4a7cf7; border-color: #4a7cf7; color: #fff; font-weight: 600; }
 
+  /* 파일 업로드 */
   .upload-card {
     border: 1.5px dashed #ccc; border-radius: 12px;
     padding: 2rem; text-align: center; cursor: pointer;
@@ -129,8 +126,6 @@
   .btn-sm { padding: 6px 14px; font-size: 12px; border-radius: 6px; }
   .btn-success { background: #1a7f44; color: #fff; }
   .btn-success:hover { opacity: 0.9; }
-  .btn-warning { background: #f9a825; color: #fff; }
-  .btn-warning:hover { opacity: 0.9; }
 
   .file-list { margin-top: 1rem; }
   .file-item {
@@ -144,6 +139,7 @@
   .file-remove { background: none; border: none; cursor: pointer; color: #ccc; font-size: 16px; padding: 2px 6px; }
   .file-remove:hover { color: #e74c3c; }
 
+  /* 자동 특약 생성 */
   .clause-gen-section {
     background: #f0f8ff; border: 1px solid #c5d8ff;
     border-radius: 12px; padding: 1.25rem; margin-bottom: 1.5rem;
@@ -173,6 +169,7 @@
   .clause-copy-btn { flex-shrink: 0; background: #f0f5ff; border: 1px solid #c5d8ff; color: #4a7cf7; border-radius: 6px; padding: 4px 10px; font-size: 11px; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; }
   .clause-copy-btn:hover { background: #e0eaff; }
 
+  /* 진행 상태 */
   .price-search-status {
     display: none; margin-top: 1.5rem;
     background: #f0f8ff; border: 1px solid #c5d8ff;
@@ -201,6 +198,7 @@
 
   .analyze-section { margin-top: 1.5rem; text-align: center; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 
+  /* 결과 */
   .result-card { background: #fff; border-radius: 16px; padding: 1.75rem; margin-top: 1.75rem; border: 1px solid #e8e8e8; display: none; }
   .result-card.show { display: block; }
   .result-header { display: flex; align-items: center; gap: 10px; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #f0f0f0; }
@@ -210,6 +208,7 @@
   .risk-caution { background: #fff7e0; color: #996600; }
   .risk-danger  { background: #fdecea; color: #c0392b; }
 
+  /* 계약서 생성 카드 (신규) */
   .doc-gen-card {
     background: linear-gradient(135deg, #f0fff4 0%, #e6f7ec 100%);
     border: 1px solid #b2dfdb; border-radius: 12px;
@@ -233,7 +232,6 @@
     margin-top: 10px; font-size: 12px; color: #666;
     padding: 8px 12px; background: #fff; border-radius: 6px;
     display: none;
-    word-break: break-word;
   }
   .doc-gen-status.show { display: block; }
 
@@ -336,7 +334,7 @@
   @keyframes spin { to { transform: rotate(360deg); } }
   .loading p { font-size: 14px; color: #666; }
 
-  .error-msg { background: #fdecea; border-radius: 10px; padding: 12px 16px; font-size: 14px; color: #c0392b; margin-top: 1.25rem; display: none; white-space: pre-wrap; line-height: 1.6; }
+  .error-msg { background: #fdecea; border-radius: 10px; padding: 12px 16px; font-size: 14px; color: #c0392b; margin-top: 1.25rem; display: none; }
   .error-msg.show { display: block; }
 
   .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1a1a1a; color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 13px; font-weight: 600; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 9999; }
@@ -344,6 +342,7 @@
 
   .mini-spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #c5d8ff; border-top-color: #4a7cf7; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
 
+  /* 누락 정보 입력 패널 */
   .missing-panel { display: none; margin-top: 1.25rem; background: #fffbf0; border: 1px solid #ffe5a0; border-radius: 12px; padding: 1.25rem; }
   .missing-panel.show { display: block; }
   .missing-panel-title { font-size: 14px; font-weight: 600; color: #996600; margin-bottom: 1rem; display: flex; align-items: center; gap: 6px; }
@@ -357,130 +356,6 @@
     .score-item { grid-template-columns: 100px 1fr 36px; }
     .missing-fields { grid-template-columns: 1fr; }
   }
-
-  /* 🆕 프록시 설정 UI */
-  .proxy-section {
-    margin-top: 1rem;
-    padding: 1rem;
-    background: #f9f9f7;
-    border-radius: 10px;
-    border: 1px solid #e8e8e8;
-  }
-  .proxy-header {
-    display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
-  }
-  .proxy-header label {
-    font-size: 13px; font-weight: 600; color: #555;
-  }
-  .proxy-options {
-    display: flex; flex-direction: column; gap: 6px;
-  }
-  .proxy-opt {
-    display: flex; align-items: center; gap: 8px;
-    font-size: 12.5px; color: #444; cursor: pointer;
-    padding: 6px 8px; border-radius: 6px;
-    transition: background 0.15s;
-  }
-  .proxy-opt:hover { background: #f0f0f0; }
-  .proxy-opt input[type="radio"] { margin: 0; accent-color: #4a7cf7; }
-  .proxy-opt a { color: #4a7cf7; text-decoration: underline; }
-  #custom-proxy {
-    width: 100%; padding: 8px 12px;
-    border: 1px solid #ddd; border-radius: 6px;
-    font-size: 13px; font-family: monospace;
-    outline: none;
-  }
-  #custom-proxy:focus { border-color: #4a7cf7; }
-  .proxy-hint {
-    margin-top: 10px; padding: 8px 10px;
-    font-size: 11.5px; color: #666; line-height: 1.6;
-    background: #fff; border-radius: 6px;
-    border-left: 3px solid #4a7cf7;
-  }
-  .proxy-hint strong { color: #2a5bd7; }
-  .diag-result {
-    margin-top: 10px; padding: 10px 12px;
-    border-radius: 8px; font-size: 12px; line-height: 1.7;
-    display: none; font-family: monospace; white-space: pre-wrap;
-    word-break: break-word;
-  }
-  .diag-result.show { display: block; }
-  .diag-result.pass { background: #e6f7ec; color: #1a7f44; border: 1px solid #b2dfdb; }
-  .diag-result.fail { background: #fdecea; color: #c0392b; border: 1px solid #f5b7b1; }
-  .diag-result.info { background: #f0f5ff; color: #2a5bd7; border: 1px solid #c5d8ff; }
-
-  /* 🆕 Worker 가이드 모달 */
-  .modal-overlay {
-    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
-    z-index: 10000; display: none; align-items: flex-start; justify-content: center;
-    padding: 2rem 1rem; overflow-y: auto;
-  }
-  .modal-overlay.show { display: flex; }
-  .modal-box {
-    background: #fff; border-radius: 16px; max-width: 720px; width: 100%;
-    margin: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-    animation: slideIn 0.25s ease-out;
-  }
-  @keyframes slideIn { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-  .modal-header {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 1.25rem 1.5rem; border-bottom: 1px solid #eee;
-    position: sticky; top: 0; background: #fff; border-radius: 16px 16px 0 0;
-  }
-  .modal-header h2 { font-size: 17px; font-weight: 700; }
-  .modal-close {
-    background: #f5f5f5; border: none; width: 32px; height: 32px;
-    border-radius: 50%; font-size: 16px; cursor: pointer; color: #666;
-    display: flex; align-items: center; justify-content: center;
-  }
-  .modal-close:hover { background: #e5e5e5; }
-  .modal-body { padding: 1.5rem; }
-  .modal-intro {
-    background: #f0f5ff; border-radius: 10px; padding: 12px 16px;
-    font-size: 13.5px; line-height: 1.7; color: #334; margin-bottom: 1.25rem;
-  }
-  .modal-intro strong { color: #2a5bd7; }
-
-  .guide-step {
-    display: flex; gap: 14px; margin-bottom: 1.25rem;
-    padding-bottom: 1.25rem; border-bottom: 1px solid #f0f0f0;
-  }
-  .guide-step:last-of-type { border-bottom: none; }
-  .guide-num {
-    flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%;
-    background: #4a7cf7; color: #fff; font-weight: 700;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 15px;
-  }
-  .guide-content { flex: 1; }
-  .guide-content strong { font-size: 14px; color: #1a1a1a; display: block; margin-bottom: 6px; }
-  .guide-content p { font-size: 13px; color: #555; line-height: 1.7; }
-  .guide-content code {
-    background: #f5f5f5; border-radius: 4px; padding: 2px 6px;
-    font-size: 12px; font-family: 'Courier New', monospace; color: #d63384;
-  }
-  .guide-content a { color: #4a7cf7; text-decoration: underline; font-family: monospace; font-size: 12px; }
-
-  .code-box {
-    position: relative; background: #2d2d2d; border-radius: 8px;
-    padding: 36px 12px 12px 12px; margin-top: 8px;
-  }
-  .code-copy-btn {
-    position: absolute !important; top: 8px; right: 8px;
-    background: #4a7cf7 !important; color: #fff !important;
-    border: none !important; font-size: 11px !important;
-  }
-  .code-box pre {
-    color: #d4d4d4; font-family: 'Courier New', monospace;
-    font-size: 11px; line-height: 1.5; white-space: pre-wrap;
-    word-break: break-word; max-height: 300px; overflow-y: auto;
-  }
-
-  .guide-tip {
-    background: #fffbf0; border: 1px solid #ffe5a0; border-radius: 10px;
-    padding: 12px 16px; font-size: 12.5px; color: #664400; line-height: 1.7;
-    margin-top: 1rem;
-  }
 </style>
 </head>
 <body>
@@ -488,39 +363,21 @@
 <header>
   <span>🏠</span>
   <h1>부동산 계약서 AI 분석</h1>
-  <span class="subtitle">Powered by Gemini 2.0 Flash · 무료</span>
+  <span class="subtitle">분석 + 임시 계약서 자동 생성</span>
 </header>
 
 <div class="container">
 
   <!-- API Key + 템플릿 상태 -->
   <div class="section-card api-key-section">
-    <label>Google Gemini API Key</label>
-    <input type="password" id="api-key" placeholder="AIzaSy..." autocomplete="off" />
-    <p class="hint">
-      🔒 브라우저에만 저장되며 외부로 전송되지 않아요. 
-      <a href="https://aistudio.google.com/apikey" target="_blank">API 키 발급받기 (무료) →</a><br>
-      💚 <strong>완전 무료</strong> · 신용카드 불필요 · Google 계정만 있으면 바로 사용 가능
-    </p>
+    <label>Anthropic API Key</label>
+    <input type="password" id="api-key" placeholder="sk-ant-..." autocomplete="off" />
+    <p class="hint">🔒 브라우저에만 저장되며 외부로 전송되지 않아요. <a href="https://console.anthropic.com/settings/keys" target="_blank">API 키 발급받기 →</a></p>
 
     <div class="template-status loading" id="template-status">
       <span class="mini-spinner"></span>
       <span>계약서 템플릿(.docx) 로드 중...</span>
     </div>
-
-    <!-- 진단 버튼만 남김 -->
-    <div class="proxy-section">
-      <div class="proxy-header">
-        <label style="flex:1">🔬 API 연결 상태 확인</label>
-        <button type="button" class="btn btn-outline btn-sm" onclick="runApiDiagnostic()">🔬 연결 진단</button>
-      </div>
-      <div class="proxy-hint">
-        💡 Gemini API는 CORS를 지원하므로 프록시가 필요 없어요. 
-        진단 버튼을 눌러 API 키가 제대로 작동하는지 확인하세요.
-      </div>
-      <div class="diag-result" id="diag-result"></div>
-    </div>
-
   </div>
 
   <!-- 파일 업로드 + 건물/계약 종류 -->
@@ -612,6 +469,7 @@
       <span class="risk-badge" id="risk-badge"></span>
     </div>
 
+    <!-- 🆕 계약서 자동 생성 카드 -->
     <div class="doc-gen-card" id="doc-gen-card" style="display:none">
       <div class="doc-gen-header">
         <span style="font-size:22px">📝</span>
@@ -619,7 +477,7 @@
       </div>
       <div class="doc-gen-desc">
         분석된 정보로 내장 템플릿(.docx)에 자동으로 채워넣어 완성된 계약서를 만들어드려요.<br>
-        누락된 필수 특약은 자동으로 보완됩니다. <strong>동일한 내용의 TXT 파일</strong>도 함께 받을 수 있어요.
+        누락된 필수 특약은 자동으로 보완됩니다.
       </div>
       <div class="missing-clauses-box" id="missing-clauses-box" style="display:none">
         <strong>⚠️ 다음 필수 특약이 누락되어 자동 추가됩니다:</strong>
@@ -627,7 +485,6 @@
       </div>
       <div class="doc-gen-actions">
         <button class="btn btn-success" id="gen-doc-btn" onclick="generateContract()">📄 임시 계약서 다운로드 (.docx)</button>
-        <button class="btn btn-warning" id="gen-txt-btn" onclick="generateContractTxt()">📝 동일 내용 TXT 다운로드</button>
         <button class="btn btn-outline" onclick="previewMissingClauses()">🔍 추가될 특약 미리보기</button>
       </div>
       <div class="doc-gen-status" id="doc-gen-status"></div>
@@ -705,10 +562,13 @@
 
 <script>
 /* ==========================================================
-   템플릿 & 필수 특약 설정
+   🆕 템플릿 & 필수 특약 설정
    ========================================================== */
-const TEMPLATE_URL = 'https://raw.githubusercontent.com/Firew00d/real-estate-helper/main/contractsample.docx';
 
+// GitHub raw URL에 템플릿 .docx 파일 업로드 후 경로 교체
+// 예: https://raw.githubusercontent.com/your-id/your-repo/main/templates/lease-template.docx
+const TEMPLATE_URL = 'https://raw.githubusercontent.com/Firew00d/real-estate-helper/main/contractsample.docx'
+// 필수 특약 리스트 (사용자 요구사항)
 const REQUIRED_CLAUSES = [
   {
     id: 'prior_debt_notice',
@@ -765,18 +625,17 @@ const selectedTags = new Set();
 let selectedBuildingType = '';
 let selectedContractType = '월세';
 let lastAnalysisResult = null;
-let templateBuffer = null;
-let templateLoadError = null;
+let templateBuffer = null; // ArrayBuffer of template.docx
 
 /* ==========================================================
-   템플릿 로드
+   🆕 템플릿 로드 (페이지 시작 시)
    ========================================================== */
 async function loadTemplate() {
   const statusEl = document.getElementById('template-status');
   try {
     if (TEMPLATE_URL.includes('YOUR_GITHUB_ID')) {
       statusEl.className = 'template-status error';
-      statusEl.innerHTML = '⚠️ 템플릿 URL이 설정되지 않았어요.';
+      statusEl.innerHTML = '⚠️ 템플릿 URL이 설정되지 않았어요. 코드의 <code style="background:#fff;padding:2px 4px;border-radius:3px">TEMPLATE_URL</code> 변수를 GitHub raw URL로 수정하세요.';
       return;
     }
 
@@ -784,23 +643,11 @@ async function loadTemplate() {
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     templateBuffer = await resp.arrayBuffer();
 
-    // 🆕 템플릿 유효성 사전 검증
-    try {
-      const testZip = await JSZip.loadAsync(templateBuffer);
-      if (!testZip.file('word/document.xml')) {
-        throw new Error('document.xml이 템플릿에 없습니다. 올바른 .docx 파일이 맞는지 확인해주세요.');
-      }
-    } catch (validateErr) {
-      throw new Error('템플릿 검증 실패: ' + validateErr.message);
-    }
-
     statusEl.className = 'template-status ready';
-    statusEl.innerHTML = '✅ 계약서 템플릿 로드 완료 (' + (templateBuffer.byteLength / 1024).toFixed(1) + 'KB)';
+    statusEl.innerHTML = '✅ 계약서 템플릿 로드 완료 (' + (templateBuffer.byteLength / 1024).toFixed(1) + 'KB) — 분석 후 자동 생성 가능';
   } catch(e) {
-    templateLoadError = e.message;
     statusEl.className = 'template-status error';
-    statusEl.innerHTML = '⚠️ 템플릿 로드 실패: ' + e.message +
-      ' <button onclick="loadTemplate()">🔄 재시도</button>';
+    statusEl.innerHTML = '⚠️ 템플릿 로드 실패: ' + e.message + ' — 분석은 가능하지만 계약서 자동 생성은 비활성화됩니다.';
   }
 }
 window.addEventListener('DOMContentLoaded', loadTemplate);
@@ -861,11 +708,14 @@ dz.addEventListener('drop', (e) => {
 });
 
 /* ==========================================================
-   이미지 압축
+   🆕 이미지 자동 리사이즈 + 압축
+   - Anthropic API 제한: base64 5MB (≈ 원본 3.75MB)
+   - 긴 변 2000px 초과 시 리사이즈
+   - 용량 초과 시 JPEG 품질 점진적 하향
    ========================================================== */
-const MAX_BASE64_BYTES = 5 * 1024 * 1024;
-const MAX_RAW_BYTES    = Math.floor(MAX_BASE64_BYTES * 0.74);
-const MAX_DIMENSION    = 2000;
+const MAX_BASE64_BYTES = 5 * 1024 * 1024;           // 5MB
+const MAX_RAW_BYTES    = Math.floor(MAX_BASE64_BYTES * 0.74); // ≈ 3.88MB (base64 오버헤드 1.37x 고려)
+const MAX_DIMENSION    = 2000;                       // 긴 변 최대 px
 
 function loadImage(file) {
   return new Promise((res, rej) => {
@@ -876,9 +726,11 @@ function loadImage(file) {
     img.src = url;
   });
 }
+
 function canvasToBlob(canvas, type, quality) {
   return new Promise((res) => canvas.toBlob(res, type, quality));
 }
+
 function blobToBase64(blob) {
   return new Promise((res, rej) => {
     const r = new FileReader();
@@ -887,19 +739,26 @@ function blobToBase64(blob) {
     r.readAsDataURL(blob);
   });
 }
+
 async function compressImage(file) {
   const img = await loadImage(file);
+
+  // 긴 변 기준으로 리사이즈 비율 계산
   let { width, height } = img;
   const longSide = Math.max(width, height);
   const scale = longSide > MAX_DIMENSION ? MAX_DIMENSION / longSide : 1;
   width  = Math.round(width * scale);
   height = Math.round(height * scale);
+
   const canvas = document.createElement('canvas');
   canvas.width = width; canvas.height = height;
   const ctx = canvas.getContext('2d');
+  // 흰색 배경 (PNG 투명 영역이 검게 나오는 것 방지)
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, width, height);
   ctx.drawImage(img, 0, 0, width, height);
+
+  // JPEG로 변환하며 용량이 한도 이내가 될 때까지 품질 하향
   const qualities = [0.9, 0.8, 0.7, 0.6, 0.5, 0.4];
   for (const q of qualities) {
     const blob = await canvasToBlob(canvas, 'image/jpeg', q);
@@ -907,6 +766,8 @@ async function compressImage(file) {
       return { blob, width, height, quality: q };
     }
   }
+
+  // 그래도 초과하면 추가 축소 (한 번 더)
   const smallerCanvas = document.createElement('canvas');
   smallerCanvas.width = Math.round(width * 0.7);
   smallerCanvas.height = Math.round(height * 0.7);
@@ -918,7 +779,14 @@ async function compressImage(file) {
   return { blob: finalBlob, width: smallerCanvas.width, height: smallerCanvas.height, quality: 0.5 };
 }
 
+/**
+ * 파일을 base64로 변환.
+ * - PDF: 그대로 (용량 초과 시 에러)
+ * - 이미지: 필요 시 리사이즈/압축 후 JPEG로 변환
+ * 반환: { base64, mediaType, wasCompressed }
+ */
 async function fileToBase64(file) {
+  // PDF는 그대로 처리
   if (file.type === 'application/pdf') {
     if (file.size > MAX_RAW_BYTES) {
       throw new Error(`PDF 파일이 너무 커요 (${formatSize(file.size)}). 5MB 이하로 분할해주세요.`);
@@ -926,10 +794,15 @@ async function fileToBase64(file) {
     const base64 = await blobToBase64(file);
     return { base64, mediaType: 'application/pdf', wasCompressed: false };
   }
+
+  // 이미지: 먼저 크기 확인
   if (file.size <= MAX_RAW_BYTES) {
+    // 원본 그대로 보내도 안전
     const base64 = await blobToBase64(file);
     return { base64, mediaType: file.type, wasCompressed: false };
   }
+
+  // 용량 초과 → 압축
   const { blob } = await compressImage(file);
   if (!blob || blob.size > MAX_RAW_BYTES) {
     throw new Error('이미지 압축에 실패했어요. 더 작은 사진을 사용해주세요.');
@@ -960,6 +833,7 @@ function copyToClipboard(text) {
 async function generateClauses() {
   const apiKey = document.getElementById('api-key').value.trim();
   if (!apiKey) { alert('먼저 API 키를 입력해주세요.'); return; }
+
   const tags = [...selectedTags];
   const custom = document.getElementById('clause-custom').value.trim();
   const allTags = custom ? [...tags, custom] : tags;
@@ -971,16 +845,29 @@ async function generateClauses() {
   container.classList.add('show');
 
   try {
-    // callAPI로 통일 (프록시 설정 자동 적용)
-    const data = await callAPI(apiKey, [{
-      role: 'user',
-      content: `당신은 대한민국 부동산 임대차 계약 전문가입니다.
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1500,
+        messages: [{
+          role: 'user',
+          content: `당신은 대한민국 부동산 임대차 계약 전문가입니다.
 임차인의 상황: ${allTags.join(', ')}
 
 위 상황에서 임차인에게 유리한 특약사항 문장을 JSON 배열로 생성해주세요.
 각 항목에는 "situation"(상황), "clause"(특약 문장), "reason"(이유 한 줄) 포함.
 JSON 외 다른 텍스트 없이 응답하세요.`
-    }], null, 1500);
+        }]
+      })
+    });
+    const data = await resp.json();
     const raw = data.content.map(c => c.text || '').join('');
     const clean = raw.replace(/```json|```/g, '').trim();
     const clauses = JSON.parse(clean);
@@ -994,7 +881,7 @@ JSON 외 다른 텍스트 없이 응답하세요.`
       </div>
     `).join('');
   } catch(e) {
-    body.innerHTML = `<div style="padding:12px;font-size:13px;color:#c0392b;white-space:pre-wrap">오류: ${e.message}</div>`;
+    body.innerHTML = `<div style="padding:12px;font-size:13px;color:#c0392b">오류: ${e.message}</div>`;
   }
 }
 
@@ -1020,172 +907,7 @@ function renderMissingPanel(missingList) {
 }
 
 /* ==========================================================
-   🆕 Gemini API 설정
-   ========================================================== */
-const GEMINI_MODEL = 'gemini-2.0-flash';
-const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
-
-function getGeminiEndpoint(useGrounding = false) {
-  return `${GEMINI_API_BASE}/${GEMINI_MODEL}:generateContent`;
-}
-
-/* ==========================================================
-   🆕 Anthropic 형식 → Gemini 형식 변환
-   - Anthropic: { role, content: [{type:'text'|'image'|'document', ...}] }
-   - Gemini:    { role, parts: [{text:...} | {inline_data:{mime_type, data}}] }
-   ========================================================== */
-function anthropicMessagesToGeminiContents(messages) {
-  const contents = [];
-  for (const msg of messages) {
-    const role = msg.role === 'assistant' ? 'model' : 'user';
-    const parts = [];
-    
-    if (typeof msg.content === 'string') {
-      parts.push({ text: msg.content });
-    } else if (Array.isArray(msg.content)) {
-      for (const block of msg.content) {
-        if (block.type === 'text') {
-          parts.push({ text: block.text });
-        } else if (block.type === 'image' && block.source?.type === 'base64') {
-          parts.push({
-            inline_data: {
-              mime_type: block.source.media_type,
-              data: block.source.data
-            }
-          });
-        } else if (block.type === 'document' && block.source?.type === 'base64') {
-          parts.push({
-            inline_data: {
-              mime_type: 'application/pdf',
-              data: block.source.data
-            }
-          });
-        }
-      }
-    }
-    if (parts.length > 0) contents.push({ role, parts });
-  }
-  return contents;
-}
-
-/* ==========================================================
-   🆕 Gemini 응답 → Anthropic 호환 형식으로 변환
-   - 기존 코드가 data.content[].text 형태를 기대하므로 맞춰서 반환
-   ========================================================== */
-function geminiResponseToAnthropicFormat(data) {
-  if (!data.candidates || data.candidates.length === 0) {
-    return { content: [{ type: 'text', text: '' }], stop_reason: 'end_turn' };
-  }
-  const candidate = data.candidates[0];
-  const parts = candidate.content?.parts || [];
-  const content = parts
-    .filter(p => p.text)
-    .map(p => ({ type: 'text', text: p.text }));
-  
-  return {
-    content: content.length > 0 ? content : [{ type: 'text', text: '' }],
-    stop_reason: candidate.finishReason === 'STOP' ? 'end_turn' : 'end_turn',
-    model: data.modelVersion || GEMINI_MODEL
-  };
-}
-
-/* ==========================================================
-   🆕 연결 진단 도구 (Gemini 버전)
-   ========================================================== */
-async function runApiDiagnostic() {
-  const apiKey = document.getElementById('api-key').value.trim();
-  const resultEl = document.getElementById('diag-result');
-  resultEl.className = 'diag-result info show';
-  resultEl.textContent = '🔄 진단 중... (약 5초 소요)';
-  
-  const results = [];
-  const log = (msg) => { results.push(msg); resultEl.textContent = results.join('\n'); };
-  
-  log('═══ Gemini API 연결 진단 ═══');
-  log('');
-  
-  // 1. API 키 형식 검사
-  log('[1] API 키 형식 검사');
-  if (!apiKey) {
-    log('    ❌ API 키가 입력되지 않았어요');
-    resultEl.className = 'diag-result fail show';
-    return;
-  }
-  if (!apiKey.startsWith('AIzaSy')) {
-    log('    ⚠️ "AIzaSy"로 시작하지 않는 키 (Gemini 키가 맞는지 확인)');
-  } else {
-    log('    ✅ 형식 OK (' + apiKey.length + '자)');
-  }
-  log('');
-  
-  // 2. Google 서버 연결
-  log('[2] Google API 서버 연결');
-  try {
-    await fetch('https://generativelanguage.googleapis.com/favicon.ico', { mode: 'no-cors', cache: 'no-store' });
-    log('    ✅ 서버 접근 가능');
-  } catch (e) {
-    log('    ❌ 서버 접근 실패: ' + e.message);
-  }
-  log('');
-  
-  // 3. 실제 API 호출 테스트
-  log('[3] Gemini API 호출 테스트');
-  log('    모델: ' + GEMINI_MODEL);
-  
-  try {
-    const resp = await fetch(getGeminiEndpoint(), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey
-      },
-      body: JSON.stringify({
-        contents: [{ role: 'user', parts: [{ text: 'hi' }] }],
-        generationConfig: { maxOutputTokens: 10 }
-      })
-    });
-    
-    log('    HTTP 상태: ' + resp.status);
-    
-    if (resp.ok) {
-      const data = await resp.json();
-      const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      log('    ✅ API 호출 성공!');
-      log('    응답: "' + text.trim() + '"');
-      resultEl.className = 'diag-result pass show';
-      log('');
-      log('═══ 진단 결과: 정상 ═══');
-      log('지금 분석을 진행할 수 있어요.');
-      return;
-    } else {
-      const errText = await resp.text();
-      log('    ❌ API 에러 응답:');
-      log('    ' + errText.slice(0, 300));
-      if (resp.status === 400) {
-        log('    → 요청 형식 오류 가능성');
-      } else if (resp.status === 401 || resp.status === 403) {
-        log('    → API 키가 잘못되었거나 권한 없음');
-        log('    → https://aistudio.google.com/apikey 에서 새 키 발급');
-      } else if (resp.status === 429) {
-        log('    → Rate limit 초과 (무료 한도: 분당 15회)');
-      }
-      resultEl.className = 'diag-result fail show';
-    }
-  } catch (e) {
-    log('    ❌ 네트워크 에러: ' + e.message);
-    log('');
-    log('💡 해결 방법:');
-    log('');
-    log('1. 광고차단기/프라이버시 확장 일시 정지');
-    log('2. 시크릿/InPrivate 창에서 재시도');
-    log('3. VPN 끄고 재시도');
-    log('4. 모바일 핫스팟에서 재시도');
-    resultEl.className = 'diag-result fail show';
-  }
-}
-
-/* ==========================================================
-   진행 상태 / API 호출 (Gemini)
+   진행 상태 / API 호출
    ========================================================== */
 function updateStep(steps, activeIdx, doneIdxList = []) {
   const container = document.getElementById('price-search-steps');
@@ -1197,72 +919,28 @@ function updateStep(steps, activeIdx, doneIdxList = []) {
   }).join('');
 }
 
-/**
- * 🆕 Gemini API 호출 (Anthropic 호환 인터페이스 유지)
- * 
- * @param {string} apiKey - Gemini API 키
- * @param {Array} messages - Anthropic 형식 메시지 배열
- * @param {Array} tools - 도구 (web_search일 경우 Gemini의 google_search 사용)
- * @param {number} maxTokens - 최대 출력 토큰
- * @returns {Object} Anthropic 호환 응답 { content, stop_reason }
- */
 async function callAPI(apiKey, messages, tools = null, maxTokens = 4000) {
-  const contents = anthropicMessagesToGeminiContents(messages);
-  
-  const body = {
-    contents,
-    generationConfig: {
-      maxOutputTokens: maxTokens,
-      temperature: 0.7
-    }
-  };
-  
-  // 웹 검색 도구가 요청되면 Gemini의 Google Search Grounding 사용
-  if (tools && tools.some(t => t.type?.includes('web_search') || t.name === 'web_search')) {
-    body.tools = [{ google_search: {} }];
-  }
-  
-  let resp;
-  try {
-    resp = await fetch(getGeminiEndpoint(), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-goog-api-key': apiKey
-      },
-      body: JSON.stringify(body)
-    });
-  } catch (e) {
-    throw new Error(
-      'API 연결 실패 (' + e.message + ')\n\n' +
-      '👉 "🔬 연결 진단" 버튼으로 원인을 확인해보세요.\n' +
-      '   (주요 원인: 광고차단기, VPN, 방화벽)'
-    );
-  }
-  
+  const body = { model: 'claude-sonnet-4-20250514', max_tokens: maxTokens, messages };
+  if (tools) body.tools = tools;
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify(body)
+  });
   if (!resp.ok) {
-    let errMsg = `Gemini API 오류 (${resp.status})`;
-    try {
-      const err = await resp.json();
-      errMsg = err.error?.message || errMsg;
-    } catch {}
-    if (resp.status === 401 || resp.status === 403) {
-      errMsg += '\n👉 API 키가 잘못되었거나 만료. https://aistudio.google.com/apikey 에서 재발급';
-    }
-    if (resp.status === 429) {
-      errMsg += '\n👉 Rate limit 초과 (무료: 분당 15회, 일 1500회). 잠시 후 재시도.';
-    }
-    throw new Error(errMsg);
+    const err = await resp.json();
+    throw new Error(err.error?.message || `API 오류 (${resp.status})`);
   }
-  
-  const data = await resp.json();
-  return geminiResponseToAnthropicFormat(data);
+  return await resp.json();
 }
-
 function extractText(content) {
   return content.map(c => c.type === 'text' ? c.text : '').filter(Boolean).join('\n');
 }
-
 
 /* ==========================================================
    STEP 1: 서류 정보 추출
@@ -1323,35 +1001,19 @@ async function searchRealPrice(apiKey, info, buildingType) {
   const buildingName = info.building_name || '';
   const area = info.area ? `${info.area}㎡` : '';
 
-  // Gemini는 google_search grounding 도구를 한 번의 호출로 처리
-  // 1단계: 웹 검색으로 정보 수집
-  const searchQuery = `${address} ${buildingName} ${type} 실거래가 국토교통부 네이버부동산 최근 거래`;
-  
-  try {
-    // 1차: Google 검색 결과를 바탕으로 정보 요약 받기
-    const searchResp = await callAPI(apiKey, [{
-      role: 'user',
-      content: `다음 부동산의 최근 실거래가를 웹에서 찾아 요약해주세요.
+  const messages = [{
+    role: 'user',
+    content: `당신은 대한민국 부동산 실거래가 전문 분석가입니다.
+
+다음 부동산의 최근 실거래가를 웹서치로 조회해주세요:
 - 주소: ${address}
 - 건물명: ${buildingName || '(없음)'}
 - 건물 종류: ${type}
 - 전용면적: ${area || '(불명)'}
 
-국토교통부 실거래가, 네이버부동산, 호갱노노 등에서 최근 1~2년 내 매매/전세 거래 내역을 찾아 정리해주세요.
-각 거래의 날짜, 거래유형(매매/전세), 가격(만원), 면적, 층수를 포함해주세요.`
-    }], [{ type: 'web_search', name: 'web_search' }], 2000);
-    
-    const searchSummary = extractText(searchResp.content);
-    
-    // 2차: 요약을 바탕으로 구조화된 JSON 반환
-    const jsonResp = await callAPI(apiKey, [{
-      role: 'user',
-      content: `다음은 부동산 실거래가 검색 결과 요약입니다:
+웹서치로 국토교통부 실거래가나 네이버부동산 등에서 최근 1~2년 내 실거래 내역을 찾아주세요.
 
-${searchSummary}
-
-이 정보를 바탕으로 아래 JSON 형식으로만 응답하세요. JSON 외 다른 텍스트 없이.
-
+조회 후 JSON 형식으로만 응답:
 {
   "search_success": true/false,
   "building_type_used": "${type}",
@@ -1362,30 +1024,34 @@ ${searchSummary}
   "avg_lease_price": 숫자(만원) 또는 null,
   "price_source": "출처 설명",
   "search_note": "조회 과정 메모"
-}
+}`
+  }];
 
-데이터가 불충분하면 search_success를 false로 하고 recent_transactions를 빈 배열로.`
-    }], null, 2000);
-    
-    const raw = extractText(jsonResp.content).replace(/```json|```/g, '').trim();
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return { 
-        search_success: false, 
-        search_note: '응답 파싱 실패', 
-        recent_transactions: [],
-        raw_summary: searchSummary.slice(0, 500)
-      };
+  const webSearchTool = [{ type: 'web_search_20250305', name: 'web_search' }];
+  let currentMessages = [...messages];
+  let priceResult = null;
+
+  for (let i = 0; i < 5; i++) {
+    const data = await callAPI(apiKey, currentMessages, webSearchTool);
+    if (data.stop_reason === 'end_turn') {
+      const raw = extractText(data.content).replace(/```json|```/g, '').trim();
+      try { priceResult = JSON.parse(raw); }
+      catch { priceResult = { search_success: false, search_note: '응답 파싱 실패', recent_transactions: [] }; }
+      break;
     }
-  } catch (e) {
-    console.warn('실거래가 조회 실패:', e);
-    return { 
-      search_success: false, 
-      search_note: '조회 실패: ' + e.message, 
-      recent_transactions: [] 
-    };
+    if (data.stop_reason === 'tool_use') {
+      currentMessages.push({ role: 'assistant', content: data.content });
+      const toolResults = data.content
+        .filter(c => c.type === 'tool_use')
+        .map(c => ({ type: 'tool_result', tool_use_id: c.id, content: '검색 실행됨' }));
+      currentMessages.push({ role: 'user', content: toolResults });
+    } else {
+      const raw = extractText(data.content).replace(/```json|```/g, '').trim();
+      try { priceResult = JSON.parse(raw); } catch {}
+      break;
+    }
   }
+  return priceResult || { search_success: false, search_note: '조회 실패', recent_transactions: [] };
 }
 
 /* ==========================================================
@@ -1464,7 +1130,14 @@ ${priceContext}
     { "key": "필드명", "label": "항목명", "hint": "힌트" }
   ],
   "additional_docs": "추가 필요 서류 설명"
-}`
+}
+
+📌 missing_info에는 반드시 계약서 작성에 필요하지만 서류에서 확인되지 않은 항목만 포함:
+- 임대인/임차인 이름(landlord_name, tenant_name)
+- 보증금(lease_price), 월세(monthly_rent), 계약금(down_payment), 잔금(balance_payment)
+- 계약 시작일(contract_start), 종료일(contract_end)
+- 주소(address)
+등 중 현재 null인 것만.`
       }
     ]
   }];
@@ -1475,19 +1148,23 @@ ${priceContext}
 }
 
 /* ==========================================================
-   필수 특약 누락 검사
+   🆕 필수 특약 누락 검사
    ========================================================== */
 function detectMissingClauses(existingClauses, contractType) {
   const existingText = (existingClauses || []).join(' ');
   const missing = [];
   for (const clause of REQUIRED_CLAUSES) {
     if (!clause.category.includes(contractType)) continue;
+    // 키워드 중 하나도 안 나오면 누락으로 판단
     const found = clause.keywords.some(kw => existingText.includes(kw));
     if (!found) missing.push(clause);
   }
   return missing;
 }
 
+/* ==========================================================
+   🆕 누락 특약 미리보기
+   ========================================================== */
 function previewMissingClauses() {
   if (!lastAnalysisResult) return;
   const existing = lastAnalysisResult._docInfo?.existing_special_clauses || [];
@@ -1502,455 +1179,78 @@ function previewMissingClauses() {
 }
 
 /* ==========================================================
-   🆕🆕🆕 핵심 수정: 안전한 .docx 생성 로직 🆕🆕🆕
-   
-   전략:
-   1. AI에게 전체 XML을 맡기지 않음 (망가뜨릴 위험 큼)
-   2. 대신 원본 템플릿의 document.xml을 파싱하고
-      사용자 데이터로 문자열 치환 방식 사용
-   3. 치환 불가능한 빈칸 패턴은 원본 유지
-   4. 특약은 문서 끝에 안전하게 추가
-   5. JSZip 옵션을 docx 규격에 맞게 정확히 설정
+   🆕 AI로 템플릿 채우기 + 특약 삽입
    ========================================================== */
+async function fillTemplateWithAI(apiKey, docInfo, missingClauses) {
+  // 1) 템플릿 압축 풀기
+  const zip = await JSZip.loadAsync(templateBuffer);
+  const documentXml = await zip.file('word/document.xml').async('string');
 
-/**
- * XML 특수문자 이스케이프
- */
-function escapeXml(str) {
-  if (str === null || str === undefined) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
-}
+  // 2) 사용자 입력 + 추출 정보 병합
+  const mergedData = { ...docInfo, ...missingData };
 
-/**
- * 금액을 한글+숫자 형식으로 변환
- * 예: 2000 → "이천만원정(₩20,000,000원)"
- */
-function formatMoneyKorean(manWon) {
-  if (!manWon) return '';
-  const num = parseInt(manWon);
-  if (isNaN(num)) return String(manWon);
-  const won = num * 10000;
-  return `${num.toLocaleString()}만원정 (₩${won.toLocaleString()}원)`;
-}
+  // 3) AI에게 "XML 내 빈칸에 값 채워 넣기 + 특약 섹션에 누락 특약 추가" 요청
+  const clauseTextList = missingClauses.map(c => `【${c.title}】\n${c.content}`).join('\n\n');
 
-/**
- * 날짜를 "YYYY년 MM월 DD일" 형식으로
- */
-function formatKoreanDate(dateStr) {
-  if (!dateStr) return '';
-  const m = String(dateStr).match(/(\d{4})[-.\s/]*(\d{1,2})[-.\s/]*(\d{1,2})/);
-  if (!m) return String(dateStr);
-  return `${m[1]}년 ${m[2].padStart(2,'0')}월 ${m[3].padStart(2,'0')}일`;
-}
+  const prompt = `당신은 Word .docx 파일의 내부 document.xml을 직접 수정하는 전문가입니다.
 
-/**
- * 🆕 AI로 템플릿 빈칸 채우기 (안전한 방식)
- * - AI는 오직 "어디를 어떤 값으로 바꿀지" 치환 맵만 반환
- * - 실제 XML 수정은 클라이언트에서 수행
- */
-async function generateReplacementMap(apiKey, documentXml, mergedData) {
-  // XML에서 텍스트 부분만 추출 (AI가 분석하기 쉽게)
-  const textSnippets = [];
-  const textRegex = /<w:t[^>]*>([^<]*)<\/w:t>/g;
-  let match;
-  while ((match = textRegex.exec(documentXml)) !== null) {
-    if (match[1].trim()) {
-      textSnippets.push(match[1]);
-    }
-  }
-  
-  // 중복 제거 후 처음 200개 정도만 AI에게 전달
-  const uniqueSnippets = [...new Set(textSnippets)].slice(0, 200);
-  
-  const prompt = `당신은 Word 계약서 템플릿에 데이터를 채워넣는 전문가입니다.
-
-[템플릿에 나타나는 텍스트 조각들 - JSON 배열]
-${JSON.stringify(uniqueSnippets)}
+[원본 document.xml]
+${documentXml}
 
 [채워 넣을 데이터 - JSON]
 ${JSON.stringify(mergedData, null, 2)}
 
 [계약 유형] ${selectedContractType}
 
-작업:
-위 템플릿 텍스트 조각들을 분석해서, 데이터로 치환해야 할 부분을 찾아주세요.
-- 빈칸(연속된 공백, "___", "(   )" 같은 플레이스홀더)을 포함한 텍스트 조각을 데이터로 채운 버전으로 교체
-- 각 조각은 템플릿에 정확히 나타나는 문자열이어야 함 (1:1 교체)
+[추가해야 할 누락 특약]
+${clauseTextList || '(없음)'}
 
-JSON 형식으로만 응답 (설명 없이):
-{
-  "replacements": [
-    { "find": "원본 텍스트 조각 (템플릿에 정확히 있는 것)", "replace": "치환할 새 텍스트" }
-  ]
-}
+작업 지시:
+1. document.xml 내부의 빈칸(연속된 공백, 밑줄 "___", "( )" 등)을 JSON 데이터의 적절한 값으로 채우세요.
+   - 임대인/임차인 이름, 주소, 주민번호, 연락처는 해당 항목에 정확히 매칭
+   - 금액(보증금/월세/계약금/잔금)은 한글+숫자 형식 ("금 일천만원정(\\10,000,000원)" 같은 표기가 원본에 있으면 그대로 유지)
+   - 날짜는 원본 형식(예: "____년 ____월 ____일")에 맞춰 삽입
+   - 주소/동호수 등은 docInfo.address + floor 조합
+2. 특약사항 섹션이 있으면 그 부분의 <w:p> 요소들 사이에 누락 특약을 같은 스타일로 추가하세요.
+   - 특약 각 줄은 별도의 <w:p> 문단으로
+   - 기존 특약 스타일(runs, paragraph properties)을 최대한 모방
+3. 데이터에 값이 없는(null/빈) 항목은 원본 빈칸 그대로 유지
+4. XML 구조(태그, 네임스페이스, 속성)는 절대 망가뜨리지 말 것
+5. 응답은 **수정된 전체 document.xml 하나만** 출력. 설명/주석/코드블록 펜스 없이 순수 XML만.`;
 
-주의:
-- find는 반드시 위 텍스트 조각 배열에 있는 문자열과 완전히 일치해야 함
-- 값이 없는(null/빈) 데이터는 해당 부분을 교체하지 말 것
-- 금액은 "2,000만원정 (₩20,000,000원)" 같은 형식으로
-- 날짜는 "2026년 05월 01일" 형식으로
-- 확실하지 않으면 교체 목록에 넣지 말 것 (원본 유지가 안전)
-- 최대 50개 교체`;
+  const resp = await callAPI(apiKey, [{ role: 'user', content: prompt }], null, 16000);
+  let modifiedXml = extractText(resp.content).trim();
 
-  try {
-    const resp = await callAPI(apiKey, [{ role: 'user', content: prompt }], null, 4000);
-    let raw = extractText(resp.content).trim();
-    raw = raw.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
-    const parsed = JSON.parse(raw);
-    return parsed.replacements || [];
-  } catch (e) {
-    console.warn('AI 치환 맵 생성 실패, 빈 맵으로 계속:', e);
-    return [];
-  }
-}
+  // 코드 펜스 제거
+  modifiedXml = modifiedXml.replace(/^```xml\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
 
-/**
- * 🆕 document.xml에 특약 문단 추가
- * - 기존 문단 스타일을 복사해서 새 문단으로 삽입
- */
-function appendClausesToXml(documentXml, clauses) {
-  if (!clauses || clauses.length === 0) return documentXml;
-  
-  // <w:body>의 닫는 태그 위치 찾기
-  const bodyCloseMatch = documentXml.match(/<\/w:body>/);
-  if (!bodyCloseMatch) return documentXml;
-  
-  // sectPr 요소는 body 끝에 위치해야 하므로 그 앞에 삽입
-  // sectPr이 있으면 그 앞에, 없으면 body 닫기 태그 앞에 삽입
-  const sectPrMatch = documentXml.match(/<w:sectPr[\s\S]*?<\/w:sectPr>/);
-  
-  // 새로 추가할 XML 생성
-  const clauseTitle = `<w:p><w:pPr><w:pStyle w:val="Heading2"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t>【자동 추가된 필수 특약사항】</w:t></w:r></w:p>`;
-  
-  const clauseParagraphs = clauses.map(clause => {
-    const titleP = `<w:p><w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">▣ ${escapeXml(clause.title)}</w:t></w:r></w:p>`;
-    const contentLines = clause.content.split('\n').filter(l => l.trim());
-    const contentPs = contentLines.map(line => {
-      return `<w:p><w:r><w:t xml:space="preserve">${escapeXml(line)}</w:t></w:r></w:p>`;
-    }).join('');
-    return titleP + contentPs;
-  }).join('');
-  
-  const insertContent = clauseTitle + clauseParagraphs;
-  
-  if (sectPrMatch) {
-    // sectPr 앞에 삽입
-    return documentXml.replace(sectPrMatch[0], insertContent + sectPrMatch[0]);
-  } else {
-    // body 닫기 앞에 삽입
-    return documentXml.replace('</w:body>', insertContent + '</w:body>');
-  }
-}
-
-/**
- * 🆕🆕 핵심: 안전한 .docx 생성
- */
-async function buildContractDocx(apiKey, docInfo, missingClauses, useAI = true) {
-  if (!templateBuffer) {
-    throw new Error('템플릿이 로드되지 않았습니다.');
-  }
-  
-  // 1) 템플릿 복사해서 zip 열기 (원본 buffer 손상 방지)
-  const bufferCopy = templateBuffer.slice(0);
-  const zip = await JSZip.loadAsync(bufferCopy);
-  
-  const docXmlFile = zip.file('word/document.xml');
-  if (!docXmlFile) {
-    throw new Error('템플릿에 word/document.xml이 없습니다. 올바른 .docx 파일이 아닙니다.');
-  }
-  
-  let documentXml = await docXmlFile.async('string');
-  const originalXml = documentXml; // 백업
-  
-  // 2) 사용자 데이터 병합 + 포맷 변환
-  const mergedData = { ...docInfo, ...missingData };
-  
-  // 금액/날짜 등 한글 형식 버전 추가
-  const enrichedData = {
-    ...mergedData,
-    lease_price_formatted: formatMoneyKorean(mergedData.lease_price),
-    monthly_rent_formatted: formatMoneyKorean(mergedData.monthly_rent),
-    down_payment_formatted: formatMoneyKorean(mergedData.down_payment),
-    balance_payment_formatted: formatMoneyKorean(mergedData.balance_payment),
-    management_fee_formatted: formatMoneyKorean(mergedData.management_fee),
-    contract_start_kr: formatKoreanDate(mergedData.contract_start),
-    contract_end_kr: formatKoreanDate(mergedData.contract_end),
-    down_payment_date_kr: formatKoreanDate(mergedData.down_payment_date),
-    balance_payment_date_kr: formatKoreanDate(mergedData.balance_payment_date),
-    full_address: [mergedData.address, mergedData.floor, mergedData.building_name].filter(Boolean).join(' '),
-  };
-  
-  // 3) AI로 치환 맵 생성 (선택적)
-  let replacements = [];
-  if (useAI && apiKey) {
-    try {
-      replacements = await generateReplacementMap(apiKey, documentXml, enrichedData);
-    } catch (e) {
-      console.warn('AI 치환 생성 실패, 기본 치환만 수행:', e);
+  // XML 유효성 최소 검증
+  if (!modifiedXml.startsWith('<?xml') && !modifiedXml.startsWith('<w:document')) {
+    // XML 선언이 없으면 원본에서 선언 부분을 앞에 붙이거나, 원본 반환
+    if (documentXml.startsWith('<?xml')) {
+      const declEnd = documentXml.indexOf('?>') + 2;
+      const decl = documentXml.substring(0, declEnd);
+      if (!modifiedXml.startsWith('<?xml')) modifiedXml = decl + '\n' + modifiedXml;
     }
   }
-  
-  // 4) 치환 실행 (XML 내 w:t 태그 안의 텍스트만 대상으로)
-  // 안전한 문자열 치환: <w:t ...>TEXT</w:t> 패턴 내부만 치환
-  let replacementCount = 0;
-  for (const rep of replacements) {
-    if (!rep.find || rep.replace === undefined) continue;
-    const escapedFind = escapeXml(rep.find);
-    const escapedReplace = escapeXml(rep.replace);
-    // 정확히 일치하는 텍스트를 포함하는 <w:t> 태그 치환
-    // 전체 XML에서 안전하게 치환 (태그 구조 유지)
-    const beforeLen = documentXml.length;
-    // 이스케이프된 형식으로 검색 (XML 안에 있으므로)
-    if (documentXml.includes(escapedFind)) {
-      documentXml = documentXml.split(escapedFind).join(escapedReplace);
-      replacementCount++;
-    } else if (documentXml.includes(rep.find)) {
-      // 원본 형태로도 시도
-      documentXml = documentXml.split(rep.find).join(rep.replace);
-      replacementCount++;
-    }
-  }
-  
-  // 5) 특약 추가
-  documentXml = appendClausesToXml(documentXml, missingClauses);
-  
-  // 6) 수정된 XML 검증 (최소한의 구조 체크)
-  if (!documentXml.includes('<w:body>') || !documentXml.includes('</w:body>')) {
-    console.warn('XML 구조 손상 감지, 원본으로 폴백');
-    documentXml = appendClausesToXml(originalXml, missingClauses);
-  }
-  
-  // 7) ZIP에 다시 쓰기
-  zip.file('word/document.xml', documentXml);
-  
-  // 8) 🆕🆕 중요: JSZip 옵션을 .docx 규격에 정확히 맞추기
-  // - type: 'blob'
-  // - compression: 'DEFLATE' (필수, STORE는 docx에서 일부 Office가 거부)
-  // - compressionOptions: { level: 6 }
-  // - mimeType은 .docx의 올바른 MIME
+
+  // 4) XML 다시 집어넣고 재압축
+  zip.file('word/document.xml', modifiedXml);
   const blob = await zip.generateAsync({
     type: 'blob',
     mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    compression: 'DEFLATE',
-    compressionOptions: { level: 6 },
-    platform: 'DOS' // Windows/Mac 호환성
+    compression: 'DEFLATE'
   });
-  
-  return { blob, replacementCount };
+  return blob;
 }
 
 /* ==========================================================
-   🆕 docx XML에서 순수 텍스트 추출 (TXT 변환용)
-   - <w:p> 단락 → 줄바꿈
-   - <w:t> 태그 내용만 연결
-   - <w:br/> → 줄바꿈
-   - <w:tab/> → 탭
-   ========================================================== */
-function xmlToPlainText(documentXml) {
-  if (!documentXml) return '';
-  
-  // XML 엔티티 디코드
-  const decodeXml = (s) => s
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&amp;/g, '&');
-  
-  // 1) body 영역만 추출
-  const bodyMatch = documentXml.match(/<w:body[^>]*>([\s\S]*?)<\/w:body>/);
-  const bodyXml = bodyMatch ? bodyMatch[1] : documentXml;
-  
-  // 2) 단락 단위로 분리 후 각 단락 내 텍스트 조합
-  const paragraphs = [];
-  const paraRegex = /<w:p[\s>][\s\S]*?<\/w:p>/g;
-  const paraMatches = bodyXml.match(paraRegex) || [];
-  
-  for (const para of paraMatches) {
-    // br, tab 처리
-    let processed = para
-      .replace(/<w:br\s*\/>/g, '\n')
-      .replace(/<w:tab\s*\/>/g, '\t');
-    
-    // w:t 태그 내용만 추출
-    const textRegex = /<w:t[^>]*>([\s\S]*?)<\/w:t>/g;
-    let paraText = '';
-    let m;
-    while ((m = textRegex.exec(processed)) !== null) {
-      paraText += m[1];
-    }
-    
-    paraText = decodeXml(paraText).replace(/\s+$/g, '');
-    paragraphs.push(paraText);
-  }
-  
-  // 3) 표(테이블) 영역도 추출 (단락 바깥에 있을 수 있음)
-  // 테이블 셀은 단락을 포함하므로 위에서 대부분 처리되지만, 테이블 행 구분을 위해 추가 처리는 생략
-  
-  // 4) 연속된 빈 줄은 하나로 축소
-  const text = paragraphs.join('\n').replace(/\n{3,}/g, '\n\n');
-  return text;
-}
-
-/* ==========================================================
-   🆕 TXT 전용 특약 섹션 텍스트 생성
-   ========================================================== */
-function buildClausesPlainText(clauses) {
-  if (!clauses || clauses.length === 0) return '';
-  const lines = ['', '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', '【자동 추가된 필수 특약사항】', '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', ''];
-  for (const clause of clauses) {
-    lines.push(`▣ ${clause.title}`);
-    lines.push(clause.content);
-    lines.push('');
-  }
-  return lines.join('\n');
-}
-
-/* ==========================================================
-   🆕 docx와 동일한 내용의 TXT 생성
-   - buildContractDocx와 같은 치환 로직을 적용
-   - 최종 document.xml을 평문으로 변환
-   ========================================================== */
-async function buildContractTxt(apiKey, docInfo, missingClauses, useAI = true) {
-  if (!templateBuffer) {
-    throw new Error('템플릿이 로드되지 않았습니다.');
-  }
-  
-  // 1) 템플릿 열고 document.xml 읽기
-  const bufferCopy = templateBuffer.slice(0);
-  const zip = await JSZip.loadAsync(bufferCopy);
-  const docXmlFile = zip.file('word/document.xml');
-  if (!docXmlFile) {
-    throw new Error('템플릿에 word/document.xml이 없습니다.');
-  }
-  let documentXml = await docXmlFile.async('string');
-  
-  // 2) 사용자 데이터 병합 + 포맷 변환 (docx와 동일)
-  const mergedData = { ...docInfo, ...missingData };
-  const enrichedData = {
-    ...mergedData,
-    lease_price_formatted: formatMoneyKorean(mergedData.lease_price),
-    monthly_rent_formatted: formatMoneyKorean(mergedData.monthly_rent),
-    down_payment_formatted: formatMoneyKorean(mergedData.down_payment),
-    balance_payment_formatted: formatMoneyKorean(mergedData.balance_payment),
-    management_fee_formatted: formatMoneyKorean(mergedData.management_fee),
-    contract_start_kr: formatKoreanDate(mergedData.contract_start),
-    contract_end_kr: formatKoreanDate(mergedData.contract_end),
-    down_payment_date_kr: formatKoreanDate(mergedData.down_payment_date),
-    balance_payment_date_kr: formatKoreanDate(mergedData.balance_payment_date),
-    full_address: [mergedData.address, mergedData.floor, mergedData.building_name].filter(Boolean).join(' '),
-  };
-  
-  // 3) AI 치환 맵 (docx와 동일한 규칙으로 치환)
-  let replacements = [];
-  if (useAI && apiKey) {
-    try {
-      replacements = await generateReplacementMap(apiKey, documentXml, enrichedData);
-    } catch (e) {
-      console.warn('AI 치환 생성 실패:', e);
-    }
-  }
-  
-  for (const rep of replacements) {
-    if (!rep.find || rep.replace === undefined) continue;
-    const escapedFind = escapeXml(rep.find);
-    const escapedReplace = escapeXml(rep.replace);
-    if (documentXml.includes(escapedFind)) {
-      documentXml = documentXml.split(escapedFind).join(escapedReplace);
-    } else if (documentXml.includes(rep.find)) {
-      documentXml = documentXml.split(rep.find).join(rep.replace);
-    }
-  }
-  
-  // 4) XML → 평문 변환
-  const mainText = xmlToPlainText(documentXml);
-  
-  // 5) 헤더 + 본문 + 특약 조합
-  const today = new Date().toISOString().slice(0, 10);
-  const header = [
-    '════════════════════════════════',
-    `  임시 ${selectedContractType}계약서 (TXT 버전)`,
-    `  생성일: ${today}`,
-    '════════════════════════════════',
-    '',
-    '※ 이 파일은 .docx 계약서와 동일한 내용을 평문으로 변환한 것입니다.',
-    '※ 실제 계약 체결 시에는 .docx 파일을 사용하세요.',
-    '',
-    ''
-  ].join('\n');
-  
-  const clausesText = buildClausesPlainText(missingClauses);
-  
-  return {
-    text: header + mainText + clausesText,
-    replacementCount: replacements.length
-  };
-}
-
-/* ==========================================================
-   🆕 TXT 다운로드 (docx와 동일 내용)
-   ========================================================== */
-async function generateContractTxt() {
-  const apiKey = document.getElementById('api-key').value.trim();
-  if (!apiKey) { alert('API 키를 입력해주세요.'); return; }
-  if (!templateBuffer) { alert('템플릿이 로드되지 않았어요.'); return; }
-  if (!lastAnalysisResult) { alert('먼저 분석을 진행해주세요.'); return; }
-  
-  const btn = document.getElementById('gen-txt-btn');
-  const statusEl = document.getElementById('doc-gen-status');
-  btn.disabled = true;
-  const originalLabel = btn.innerHTML;
-  btn.innerHTML = '<span class="mini-spinner"></span> TXT 생성 중...';
-  statusEl.classList.add('show');
-  statusEl.style.background = '#fff';
-  statusEl.style.color = '#666';
-  statusEl.textContent = '🔄 TXT 파일 변환 중...';
-  
-  try {
-    const docInfo = lastAnalysisResult._docInfo || {};
-    const existing = docInfo.existing_special_clauses || [];
-    const missingClauses = detectMissingClauses(existing, selectedContractType);
-    
-    const { text, replacementCount } = await buildContractTxt(apiKey, docInfo, missingClauses, true);
-    
-    // UTF-8 BOM을 앞에 붙여 윈도우 메모장에서 한글이 깨지지 않게 함
-    const BOM = '\uFEFF';
-    const blob = new Blob([BOM + text], { type: 'text/plain;charset=utf-8' });
-    
-    const today = new Date().toISOString().slice(0, 10);
-    const typeLabel = selectedContractType;
-    const addr = (docInfo.building_name || docInfo.address || '부동산')
-      .replace(/[\\/:*?"<>|]/g, '').slice(0, 20);
-    const filename = `임시계약서_${typeLabel}_${addr}_${today}.txt`;
-    
-    saveAs(blob, filename);
-    
-    statusEl.style.background = '#e6f7ec';
-    statusEl.style.color = '#1a7f44';
-    statusEl.innerHTML = `✅ ${filename} 다운로드 완료!<br>• ${replacementCount}곳 치환 • 특약 ${missingClauses.length}개 추가 • ${text.length.toLocaleString()}자`;
-  } catch(e) {
-    console.error(e);
-    statusEl.style.background = '#fdecea';
-    statusEl.style.color = '#c0392b';
-    statusEl.innerHTML = '❌ TXT 생성 실패: ' + e.message;
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = originalLabel;
-  }
-}
-
-/* ==========================================================
-   계약서 생성 메인 (분석 결과 기반)
+   🆕 계약서 생성 메인
    ========================================================== */
 async function generateContract() {
   const apiKey = document.getElementById('api-key').value.trim();
   if (!apiKey) { alert('API 키를 입력해주세요.'); return; }
-  if (!templateBuffer) { alert('템플릿이 로드되지 않았어요.'); return; }
+  if (!templateBuffer) { alert('템플릿이 로드되지 않았어요. 페이지를 새로고침하거나 TEMPLATE_URL을 확인해주세요.'); return; }
   if (!lastAnalysisResult) { alert('먼저 분석을 진행해주세요.'); return; }
 
   const btn = document.getElementById('gen-doc-btn');
@@ -1958,30 +1258,26 @@ async function generateContract() {
   btn.disabled = true;
   btn.innerHTML = '<span class="mini-spinner"></span> 생성 중...';
   statusEl.classList.add('show');
-  statusEl.style.background = '#fff';
-  statusEl.style.color = '#666';
-  statusEl.textContent = '🔄 템플릿에 데이터 채우는 중...';
+  statusEl.textContent = '🔄 템플릿 XML 수정 중 (AI가 빈칸 판단 + 특약 삽입)...';
 
   try {
     const docInfo = lastAnalysisResult._docInfo || {};
     const existing = docInfo.existing_special_clauses || [];
     const missingClauses = detectMissingClauses(existing, selectedContractType);
 
-    const { blob, replacementCount } = await buildContractDocx(apiKey, docInfo, missingClauses, true);
+    const blob = await fillTemplateWithAI(apiKey, docInfo, missingClauses);
 
     const today = new Date().toISOString().slice(0, 10);
     const typeLabel = selectedContractType;
-    const addr = (docInfo.building_name || docInfo.address || '부동산')
-      .replace(/[\\/:*?"<>|]/g, '').slice(0, 20);
+    const addr = (docInfo.building_name || docInfo.address || '부동산').replace(/[\\/:*?"<>|]/g, '').slice(0, 20);
     const filename = `임시계약서_${typeLabel}_${addr}_${today}.docx`;
 
     saveAs(blob, filename);
 
     statusEl.style.background = '#e6f7ec';
     statusEl.style.color = '#1a7f44';
-    statusEl.innerHTML = `✅ ${filename} 다운로드 완료!<br>• ${replacementCount}곳 치환 • 누락 특약 ${missingClauses.length}개 추가`;
+    statusEl.innerHTML = `✅ ${filename} 다운로드 완료! 누락 특약 ${missingClauses.length}개 자동 추가됨`;
   } catch(e) {
-    console.error(e);
     statusEl.style.background = '#fdecea';
     statusEl.style.color = '#c0392b';
     statusEl.innerHTML = '❌ 생성 실패: ' + e.message;
@@ -2024,6 +1320,7 @@ async function analyze() {
   ];
 
   try {
+    // 🆕 파일 변환 (이미지는 자동 압축)
     const PREP_STEP = '📎 파일 준비 중 (이미지 자동 압축 포함)';
     const ALL_STEPS = [PREP_STEP, ...STEPS];
     updateStep(ALL_STEPS, 0, []);
@@ -2102,6 +1399,7 @@ function renderResult(r) {
   badge.textContent = label;
   badge.className = 'risk-badge ' + cls;
 
+  // 🆕 계약서 생성 카드 노출
   const docGenCard = document.getElementById('doc-gen-card');
   if (templateBuffer) {
     docGenCard.style.display = 'block';
@@ -2117,6 +1415,7 @@ function renderResult(r) {
     }
   }
 
+  // 점수
   if (r.score) {
     const s = r.score;
     const circleEl = document.getElementById('score-circle');
@@ -2138,6 +1437,7 @@ function renderResult(r) {
     document.getElementById('score-section').style.display = 'block';
   }
 
+  // 비용
   if (r.cost) {
     const c = r.cost;
     const costItems = [
@@ -2167,6 +1467,7 @@ function renderResult(r) {
     document.getElementById('cost-section').style.display = 'block';
   }
 
+  // 특약 패턴
   if (r.clause_patterns && r.clause_patterns.length) {
     document.getElementById('pattern-items').innerHTML = r.clause_patterns.map(p => {
       const riskMap = { '위험': ['tag-danger', '위험'], '주의': ['tag-caution', '주의'], '안전': ['tag-safe', '안전'] };
@@ -2184,6 +1485,7 @@ function renderResult(r) {
     document.getElementById('pattern-section').style.display = 'block';
   }
 
+  // 분쟁
   if (r.dispute_cases && r.dispute_cases.length) {
     document.getElementById('dispute-items').innerHTML = r.dispute_cases.map(d => {
       const rm = { '임차인 승': ['dispute-win','임차인 승'], '임차인 패': ['dispute-lose','임차인 패'], '합의': ['dispute-mixed','합의'] };
@@ -2201,6 +1503,7 @@ function renderResult(r) {
     document.getElementById('dispute-section').style.display = 'block';
   }
 
+  // 깡통전세
   if (r.gangton) {
     const g = r.gangton;
     const priceData = r._priceData;
@@ -2250,6 +1553,7 @@ function renderResult(r) {
     }
   }
 
+  // 위험/안전/특약/조언
   if (r.risks && r.risks.length) {
     document.getElementById('risks-list').innerHTML = r.risks.map(x => `<li>${x}</li>`).join('');
     document.getElementById('risks-section').style.display = 'block';
