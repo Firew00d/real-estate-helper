@@ -56,6 +56,37 @@
   .hint { font-size: 12px; color: #999; margin-top: 5px; }
   .hint a { color: #4a7cf7; }
 
+  /* 접이식 API 키 섹션 */
+  .api-key-details { margin: -0.5rem -0.25rem 0 -0.25rem; }
+  .api-key-details summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: background 0.15s;
+    user-select: none;
+  }
+  .api-key-details summary::-webkit-details-marker { display: none; }
+  .api-key-details summary:hover { background: #f7f7f5; }
+  .api-key-summary-left {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 14px; color: #444;
+  }
+  .api-key-badge {
+    font-size: 11px; font-weight: 500;
+    color: #888; background: #f0f0f0;
+    padding: 2px 8px; border-radius: 10px;
+  }
+  .api-key-chevron {
+    font-size: 11px; color: #aaa;
+    transition: transform 0.2s;
+  }
+  .api-key-details[open] .api-key-chevron { transform: rotate(180deg); }
+  .api-key-content { padding: 12px 4px 4px 4px; }
+
   /* 템플릿 상태 표시 */
   .template-status {
     margin-top: 1rem; padding: 10px 14px;
@@ -370,9 +401,20 @@
 
   <!-- API Key + 템플릿 상태 -->
   <div class="section-card api-key-section">
-    <label>Anthropic API Key <span style="font-weight:400;color:#aaa;font-size:12px">(선택 사항)</span></label>
-    <input type="password" id="api-key" placeholder="Vercel 환경변수에 저장되어 있으면 비워두세요" autocomplete="off" />
-    <p class="hint">🔒 이 앱은 Vercel Serverless Function을 통해 Claude API를 호출하므로, <strong>여기에 API 키를 입력할 필요가 없어요</strong>. Vercel의 <code>ANTHROPIC_API_KEY</code> 환경변수가 사용됩니다.</p>
+    <details class="api-key-details">
+      <summary class="api-key-summary">
+        <span class="api-key-summary-left">
+          🔑 <strong>API 키 설정</strong>
+          <span class="api-key-badge">선택 사항</span>
+        </span>
+        <span class="api-key-chevron">▼</span>
+      </summary>
+      <div class="api-key-content">
+        <label>Anthropic API Key</label>
+        <input type="password" id="api-key" placeholder="Vercel 환경변수에 저장되어 있으면 비워두세요" autocomplete="off" />
+        <p class="hint">🔒 이 앱은 Vercel Serverless Function을 통해 Claude API를 호출하므로, <strong>여기에 API 키를 입력할 필요가 없어요</strong>. Vercel의 <code>ANTHROPIC_API_KEY</code> 환경변수가 사용됩니다.</p>
+      </div>
+    </details>
 
     <div class="template-status loading" id="template-status">
       <span class="mini-spinner"></span>
@@ -570,7 +612,7 @@
      - /api/realestate  → 국토부 실거래가 프록시
      - /api/claude      → Anthropic API 프록시
    ========================================================== */
-const API_BASE_URL = 'https://realestate-proxy-vercel.vercel.app';
+const API_BASE_URL = 'https://YOUR-PROJECT.vercel.app';
 
 /* ==========================================================
    🆕 전국 시군구 법정동코드 (250개)
@@ -1210,15 +1252,30 @@ async function searchRealPrice(apiKey, info, buildingType) {
 
       // 최소 한 쪽이라도 성공했으면 병합
       if (sale || rent) {
+        // 월별로 고르게 샘플링 (한 달치가 너무 많으면 다른 월이 안 보이는 문제 해결)
+        const allTx = [
+          ...(sale?.transactions || []),
+          ...(rent?.transactions || []),
+        ].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+        const txByMonth = {};
+        for (const t of allTx) {
+          const key = `${t.date}_${t.type}`;  // 예: "2026-03_매매"
+          if (!txByMonth[key]) txByMonth[key] = [];
+          txByMonth[key].push(t);
+        }
+        // 각 월·유형 그룹에서 최대 3건씩 샘플링
+        const sampled = [];
+        for (const key of Object.keys(txByMonth).sort().reverse()) {
+          sampled.push(...txByMonth[key].slice(0, 3));
+        }
+
         const combined = {
           ok: true,
           avg_sale_price: sale?.avg_sale_price || null,
           avg_deposit: rent?.avg_deposit || null,
           avg_lease_deposit: rent?.avg_lease_deposit || null,
-          transactions: [
-            ...(sale?.transactions || []),
-            ...(rent?.transactions || []),
-          ].sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 10),
+          transactions: sampled.slice(0, 20),  // 최대 20건까지 표시
           totalCount: (sale?.totalCount || 0) + (rent?.totalCount || 0),
           filteredCount: (sale?.filteredCount || 0) + (rent?.filteredCount || 0),
           usedFilter: sale?.usedFilter || rent?.usedFilter || false,
@@ -1730,17 +1787,64 @@ function renderResult(r) {
     document.getElementById('gangton-section').style.display = 'block';
 
     if (priceData && priceData.recent_transactions && priceData.recent_transactions.length > 0) {
-      const rows = priceData.recent_transactions.map(t => `
-        <tr>
-          <td>${t.date || '-'}</td>
-          <td>${t.type || '-'}</td>
-          <td><strong>${t.price ? t.price.toLocaleString() + '만원' : '-'}</strong></td>
-          <td>${t.area ? t.area + '㎡' : '-'}</td>
-          <td>${t.floor || '-'}</td>
-        </tr>`).join('');
-      document.getElementById('price-detail-table').innerHTML = `
+      const txs = priceData.recent_transactions;
+      const wd = priceData._workerData;
+
+      // 거래 내역 통계
+      const monthsSet = new Set(txs.map(t => t.date).filter(Boolean));
+      const monthsList = [...monthsSet].sort().reverse();
+      const periodText = monthsList.length > 0
+        ? `${monthsList[monthsList.length-1]} ~ ${monthsList[0]}`
+        : '최근';
+
+      // 월이 바뀌는 지점에 구분선 주기 위해 이전 date 기억
+      let prevDate = '';
+      const rows = txs.map(t => {
+        const isMonthChange = t.date !== prevDate;
+        prevDate = t.date;
+        const rowStyle = isMonthChange ? 'border-top:2px solid #e0e0e0;' : '';
+        // 가격: 매매는 price, 전월세는 deposit + monthlyRent 조합
+        let priceDisplay = '-';
+        if (t.type === '매매' && t.price) {
+          priceDisplay = `<strong>${t.price.toLocaleString()}만원</strong>`;
+        } else if (t.type === '전월세') {
+          const dep = t._monthlyRent !== undefined ? t.price : t.price; // recent_transactions 포맷 호환
+          if (t._monthlyRent && t._monthlyRent > 0) {
+            priceDisplay = `<strong>보증금 ${t.price?.toLocaleString() || '-'}만원</strong><br><span style="font-size:11px;color:#888">월세 ${t._monthlyRent.toLocaleString()}만원</span>`;
+          } else if (t.price) {
+            priceDisplay = `<strong>전세 ${t.price.toLocaleString()}만원</strong>`;
+          }
+        }
+        return `
+          <tr style="${rowStyle}">
+            <td style="white-space:nowrap">${t.date || '-'}</td>
+            <td>${t.type || '-'}</td>
+            <td>${priceDisplay}</td>
+            <td>${t.area ? t.area.toFixed(1) + '㎡' : '-'}</td>
+            <td>${t.floor || '-'}</td>
+          </tr>`;
+      }).join('');
+
+      const summaryHtml = `
+        <div style="font-size:11.5px;color:#666;margin-bottom:8px;line-height:1.5">
+          📅 조회 기간: <strong>${periodText}</strong>
+          ${wd ? ` · 전체 조회 건수 <strong>${wd.totalCount}건</strong>` : ''}
+          ${wd?.usedFilter ? ` · 건물/면적 필터링 후 <strong>${wd.filteredCount}건</strong>` : ''}
+          <br>
+          💡 아래는 월별로 대표 거래를 샘플링한 결과입니다 (최신순 ↓)
+        </div>`;
+
+      document.getElementById('price-detail-table').innerHTML = summaryHtml + `
         <table class="price-table">
-          <thead><tr><th>거래일</th><th>유형</th><th>가격</th><th>면적</th><th>층</th></tr></thead>
+          <thead>
+            <tr>
+              <th>거래일 ↓</th>
+              <th>유형</th>
+              <th>가격</th>
+              <th>면적</th>
+              <th>층</th>
+            </tr>
+          </thead>
           <tbody>${rows}</tbody>
         </table>`;
       document.getElementById('price-detail-section').style.display = 'block';
