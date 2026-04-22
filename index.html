@@ -873,9 +873,13 @@ dz.addEventListener('drop', (e) => {
 });
 
 /* 이미지 압축 */
-const MAX_BASE64_BYTES = 5 * 1024 * 1024;
+// 이미지 압축 제한
+// Worker 프록시 경유 시 큰 요청이 막히는 경우가 있어 보수적으로 설정.
+// Claude API는 이미지 1장당 최대 5MB까지 받지만, 실용상 1MB 이하로 압축해도
+// 서류 텍스트 판독엔 충분하고 속도/비용도 훨씬 개선됨.
+const MAX_BASE64_BYTES = 1 * 1024 * 1024;    // 1MB (기존 5MB → 1MB로 축소)
 const MAX_RAW_BYTES    = Math.floor(MAX_BASE64_BYTES * 0.74);
-const MAX_DIMENSION    = 2000;
+const MAX_DIMENSION    = 1600;                // 기존 2000 → 1600px (서류 판독엔 충분)
 
 function loadImage(file) {
   return new Promise((res, rej) => {
@@ -1046,8 +1050,22 @@ async function callAPI(apiKey, messages, tools = null, maxTokens = 4000) {
     body: JSON.stringify(body)
   });
   if (!resp.ok) {
-    const err = await resp.json().catch(() => ({}));
-    throw new Error(err.error?.message || err.error || `API 오류 (${resp.status})`);
+    let errMsg = `API 오류 (${resp.status})`;
+    try {
+      const err = await resp.json();
+      // Anthropic 공식 에러 포맷: { type: "error", error: { type, message } }
+      if (err.error?.message) {
+        errMsg = `${err.error.type || 'error'}: ${err.error.message}`;
+      } else if (err.error) {
+        errMsg = typeof err.error === 'string' ? err.error : JSON.stringify(err.error);
+      } else if (err.message) {
+        errMsg = err.message;
+      }
+    } catch (e) {
+      // JSON이 아니면 텍스트로 가져오기
+      try { errMsg = await resp.text().then(t => t.slice(0, 500)); } catch {}
+    }
+    throw new Error(errMsg);
   }
   return await resp.json();
 }
