@@ -1282,24 +1282,38 @@ function updateStep(steps, activeIdx, doneIdxList = []) {
   }).join('');
 }
 
-async function callAPI(apiKey, messages, tools = null, maxTokens = 4000) {
+async function callAPI(apiKey, messages, tools = null, maxTokens = 6000) {
   const body = { model: 'claude-sonnet-4-20250514', max_tokens: maxTokens, messages };
   if (tools) body.tools = tools;
-  // Anthropic API는 Cloudflare Worker의 /claude 엔드포인트를 통해 호출
-  // (API 키도 Worker Secret(ANTHROPIC_API_KEY)에 저장되어 브라우저에 노출되지 않음)
-  // apiKey 파라미터는 사용되지 않지만 기존 호출부 호환을 위해 유지
-  const resp = await fetch(`${API_BASE_URL}/api/claude`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body)
-  });
+  // Vercel 프록시(/api/claude) 경유로 Anthropic API 호출
+  // API 키는 Vercel 환경변수(ANTHROPIC_API_KEY)에 저장되어 브라우저에 노출 안 됨
+
+  let resp;
+  try {
+    resp = await fetch(`${API_BASE_URL}/api/claude`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch (networkErr) {
+    // fetch 자체가 실패 = 네트워크 차단·Vercel 다운 등
+    console.error('[callAPI] fetch 실패:', networkErr);
+    throw new Error(
+      `서버 연결 실패: ${networkErr.message || networkErr}. ` +
+      `Vercel 함수가 정상 배포되었는지 확인하거나 잠시 후 다시 시도해주세요.`
+    );
+  }
+
   if (!resp.ok) {
     let errMsg = `API 오류 (${resp.status})`;
+    // 504는 타임아웃 전용 안내
+    if (resp.status === 504) {
+      errMsg = `⏱️ 서버 타임아웃 (504): AI 분석이 시간 내에 완료되지 않았어요. ` +
+        `이미지를 1~2장으로 줄이거나 파일 크기를 압축해서 다시 시도해주세요.`;
+      throw new Error(errMsg);
+    }
     try {
       const err = await resp.json();
-      // Anthropic 공식 에러 포맷: { type: "error", error: { type, message } }
       if (err.error?.message) {
         errMsg = `${err.error.type || 'error'}: ${err.error.message}`;
       } else if (err.error) {
@@ -1308,8 +1322,7 @@ async function callAPI(apiKey, messages, tools = null, maxTokens = 4000) {
         errMsg = err.message;
       }
     } catch (e) {
-      // JSON이 아니면 텍스트로 가져오기
-      try { errMsg = await resp.text().then(t => t.slice(0, 500)); } catch {}
+      try { errMsg = await resp.text().then(t => `${errMsg} — ${t.slice(0, 300)}`); } catch {}
     }
     throw new Error(errMsg);
   }
