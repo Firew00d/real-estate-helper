@@ -562,7 +562,7 @@
     </div>
 
     <div class="result-section" id="gangton-section" style="display:none">
-      <div class="result-section-title">🏷️ 깡통전세 분석 <span id="gangton-source-badge" style="font-size:11px;font-weight:400;color:#4a7cf7;margin-left:6px"></span></div>
+      <div class="result-section-title">📊 전세가율 위험도 분석 <span id="gangton-source-badge" style="font-size:11px;font-weight:400;color:#4a7cf7;margin-left:6px"></span></div>
       <div class="gangton-box">
         <div id="gangton-body"></div>
       </div>
@@ -1400,7 +1400,7 @@ function aggregateWeek(bucket) {
   };
 }
 
-/** "2026-W14" → "2026.04.01 주간" 같은 사람이 읽기 좋은 라벨 */
+/** "2026-W14" → "2026.04.01" 형식의 사람이 읽기 좋은 날짜 라벨 */
 function formatWeekRange(weekKey) {
   const m = weekKey.match(/^(\d{4})-W(\d+)$/);
   if (!m) return weekKey;
@@ -1411,7 +1411,24 @@ function formatWeekRange(weekKey) {
   const weekMonday = new Date(jan4.getTime() + ((week - 1) * 7 - jan4Day) * 86400000);
   const mm = String(weekMonday.getUTCMonth() + 1).padStart(2, '0');
   const dd = String(weekMonday.getUTCDate()).padStart(2, '0');
-  return `${year}.${mm}.${dd} 주`;
+  return `${year}.${mm}.${dd}`;
+}
+
+/**
+ * 주소에서 층·호수 등 상세정보 마스킹 (개인정보 보호)
+ * 예: "서울특별시 서대문구 북가좌동 350-3 제2층 제202호"
+ *   → "서울특별시 서대문구 북가좌동 350-3 ***층 ***호"
+ */
+function maskAddressDetail(addr) {
+  if (!addr) return '';
+  let s = String(addr);
+  // 층 마스킹: "제N층", "N층", "지하N층" (앞뒤 공백 보존)
+  s = s.replace(/(\s*)제?\s*(지하\s*)?\d+\s*층/g, ' ***층');
+  // 호수 마스킹
+  s = s.replace(/(\s*)제?\s*\d+\s*호/g, ' ***호');
+  // 중복 공백 정리
+  s = s.replace(/\s+/g, ' ').trim();
+  return s;
 }
 
 /** 기존 Claude 웹서치 기반 조회 (폴백) */
@@ -1686,7 +1703,7 @@ async function analyze() {
     '📎 파일 준비 중 (이미지 자동 압축)',
     '📄 서류에서 주소 및 계약 정보 추출',
     '🏛️ 국토교통부 실거래가 API 조회 (매매+전월세 병렬)',
-    '🧮 깡통전세 위험도 계산',
+    '🧮 전세가율 위험도 산정',
     '🤖 전체 계약 조건 종합 분석',
   ];
 
@@ -1925,7 +1942,7 @@ function renderResult(r) {
       // (A) 조회 정보 패널 — 어떤 주소/필터로 검색했는지 표시
       // ──────────────────────────────────────────────────────
       const addressChip = qi.fullAddress
-        ? qi.fullAddress
+        ? maskAddressDetail(qi.fullAddress)
         : [qi.sido, qi.gu, qi.dong].filter(Boolean).join(' ');
       const filters = [];
       if (qi.usedBuildingNameFilter) filters.push(`건물명 "${qi.buildingName}" 포함`);
@@ -1997,7 +2014,7 @@ function renderResult(r) {
           <table class="price-table">
             <thead>
               <tr>
-                <th>주차 ↓</th>
+                <th>조회일자 ↓</th>
                 <th>유형</th>
                 <th>평균가 (범위)</th>
                 <th style="text-align:right">건수</th>
