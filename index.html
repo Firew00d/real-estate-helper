@@ -517,7 +517,7 @@
 <header>
   <span>🏠</span>
   <h1>부동산 계약서 AI 분석</h1>
-  <span class="subtitle build-stamp">2026-04-23 12:01</span>
+  <span class="subtitle build-stamp">2026-04-23 12:10</span>
 </header>
 
 <div class="container">
@@ -1207,6 +1207,7 @@ async function generateClauses() {
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1500,
+        temperature: 0.3,   // 자연스러운 문장 + 어느 정도 일관성
         messages: [{
           role: 'user',
           content: `당신은 대한민국 부동산 임대차 계약 전문가입니다.
@@ -1272,8 +1273,13 @@ function updateStep(steps, activeIdx, doneIdxList = []) {
   }).join('');
 }
 
-async function callAPI(apiKey, messages, tools = null, maxTokens = 6000) {
-  const body = { model: 'claude-sonnet-4-20250514', max_tokens: maxTokens, messages };
+async function callAPI(apiKey, messages, tools = null, maxTokens = 6000, temperature = 0.2) {
+  const body = {
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: maxTokens,
+    temperature,   // 0에 가까울수록 같은 입력에 같은 답을 일관되게 냄
+    messages,
+  };
   if (tools) body.tools = tools;
   // Vercel 프록시(/api/claude) 경유로 Anthropic API 호출
   // API 키는 Vercel 환경변수(ANTHROPIC_API_KEY)에 저장되어 브라우저에 노출 안 됨
@@ -1333,10 +1339,21 @@ async function extractAddressFromDocs(apiKey, contentArr) {
         text: `첨부 서류(등기부등본, 건축물대장, 계약서 등)에서 아래 정보를 추출해 JSON으로만 응답하세요. JSON 외 텍스트 없이.
 
 특히 **등기부등본의 '을구'** 를 꼼꼼히 확인해 근저당권 관련 정보를 정확히 추출하세요:
-- 채권최고액 = "prior_debt" (만원 단위 숫자, 예: "채권최고액 금 2억4천만원" → 24000)
+- 채권최고액 = "prior_debt" (**반드시 만원 단위 정수**로 변환. 예시:
+  * "채권최고액 금 2억4천만원" → 24000
+  * "채권최고액 금 150,000,000원" → 15000
+  * "2억" → 20000
+  * "4,800만원" → 4800
+  * **원 단위(150000000)나 억 단위(2.4) 그대로 두지 말 것**)
 - 근저당권자(은행·법인 등) = "creditor"
 - 설정일자 = "mortgage_date"
 - 기존 특약 중 "잔금과 동시 말소" / "배액배상" / "상환 후 말소" 같은 근저당 말소 조건 문구는 "mortgage_release_clause_exists" 에 true/false 로 판정
+
+⚠️ **근저당권 판별 시 주의사항**:
+- 등기부등본 을구에 "근저당권설정"이 기록되어 있으면 prior_debt에 채권최고액 기재 (말소된 경우만 제외)
+- "근저당권말소"로 표시되어 말소선이 그어진 건 제외
+- 갑구의 소유권이전 관련 '채권최고액' 기재는 근저당이 아니니 제외
+- 서류에 을구가 전혀 보이지 않으면 null (추측 금지)
 
 {
   "address": "도로명 또는 지번 주소",
@@ -1391,7 +1408,8 @@ async function extractAddressFromDocs(apiKey, contentArr) {
       }
     ]
   }];
-  const data = await callAPI(apiKey, messages);
+  // 서류 추출: 완전 결정적으로 (같은 서류 = 같은 값 보장)
+  const data = await callAPI(apiKey, messages, null, 6000, 0);
   const raw = extractText(data.content).replace(/```json|```/g, '').trim();
   try { return JSON.parse(raw); } catch { return null; }
 }
@@ -1817,7 +1835,8 @@ async function searchRealPriceViaWebSearch(apiKey, info, type) {
   let currentMessages = [...messages];
   let priceResult = null;
   for (let i = 0; i < 5; i++) {
-    const data = await callAPI(apiKey, currentMessages, webSearchTool);
+    // 실거래가 조회: 같은 지역/건물은 같은 결과가 나오도록 결정적으로
+    const data = await callAPI(apiKey, currentMessages, webSearchTool, 6000, 0);
     if (data.stop_reason === 'end_turn') {
       const raw = extractText(data.content).replace(/```json|```/g, '').trim();
       try { priceResult = JSON.parse(raw); }
