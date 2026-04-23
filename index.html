@@ -517,7 +517,7 @@
 <header>
   <span>🏠</span>
   <h1>부동산 계약서 AI 분석</h1>
-  <span class="subtitle build-stamp">2026-04-23 12:18</span>
+  <span class="subtitle build-stamp">2026-04-23 12:32</span>
 </header>
 
 <div class="container">
@@ -1373,7 +1373,7 @@ async function extractAddressFromDocs(apiKey, contentArr) {
   "dong": "동 이름만",
   "gu": "구 이름만",
   "si": "시/도 이름",
-  "building_name": "건물명 또는 아파트 단지명 (없으면 null)",
+  "building_name": "건물명 또는 아파트 단지명 (다음 패턴들에서 찾아보세요: ① 주소 뒤 괄호 안 '(동이름, 건물명)' 형식 — 예: '(북가좌동, 그린빌라)' → '그린빌라'. ② 임대인·임차인 주소에 나오는 '~아파트', '~빌라', '~빌리지' 등 건물명. ③ 제목이 '부동산(○○주택) 계약서'처럼 건물 유형만 있으면 건물명 아님. 진짜 건물명이 보이지 않으면 null)",
   "building_type": "아파트/연립다세대/오피스텔/단독다가구 중 하나 (불분명하면 null)",
   "floor": "층수 (없으면 null)",
   "area": "전용면적 숫자만 (㎡, 없으면 null)",
@@ -1483,7 +1483,7 @@ async function fetchMolitPrice(info, buildingType, tradeType, overrides = {}) {
     buildingType,
     tradeType,
     months: '3',            // 최근 3개월 데이터로 주차별 집계
-    areaTolerance: String(overrides.areaTolerance ?? 0.10),  // 기본 ±10%
+    areaTolerance: String(overrides.areaTolerance ?? 0.07),  // 기본 ±7%
   });
   // overrides.buildingName이 빈 문자열이면 필터 완전 제거, 값 있으면 override
   const effectiveBuildingName = overrides.buildingName !== undefined
@@ -1556,7 +1556,7 @@ async function searchRealPrice(apiKey, info, buildingType, overrides = {}) {
           ? overrides.buildingName
           : info.building_name;
         const effectiveArea = overrides.area !== undefined ? overrides.area : info.area;
-        const effectiveAreaTolerance = overrides.areaTolerance ?? 0.10;
+        const effectiveAreaTolerance = overrides.areaTolerance ?? 0.07;
         const queryInfo = {
           sido: info.si || '',
           gu: info.gu || '',
@@ -3069,6 +3069,7 @@ async function analyze() {
     '📎 파일 준비 중 (이미지 자동 압축)',
     '📄 서류에서 주소 및 계약 정보 추출',
     '🏛️ 국토교통부 실거래가 API 조회 (매매+전월세 병렬)',
+    '🌐 보조 시세 웹 조회 (네이버부동산·호갱노노 등)',
     '🧮 전세가율 위험도 산정',
     '🤖 전체 계약 조건 종합 분석',
   ];
@@ -3145,15 +3146,28 @@ async function analyze() {
       }
     }
 
+    // Step 3: 보조 웹 조회 (국토부 API 결과와 별개로)
     updateStep(STEPS, 3, [0, 1, 2]);
+    let webPriceData = null;
+    if (apiKey && docInfo && (docInfo.address || docInfo.gu || docInfo.dong)) {
+      try {
+        webPriceData = await searchRealPriceViaWebSearch(apiKey, docInfo, buildingType);
+      } catch (e) {
+        console.warn('[web-price] 보조 웹 조회 실패:', e.message);
+        webPriceData = null;
+      }
+    }
+
     updateStep(STEPS, 4, [0, 1, 2, 3]);
+    updateStep(STEPS, 5, [0, 1, 2, 3, 4]);
 
     const result = await finalAnalysis(apiKey, contentArr, docInfo, priceData, buildingType);
     result._priceData = priceData;
+    result._webPriceData = webPriceData;   // 웹검색 결과도 저장
     result._docInfo = docInfo;
     lastAnalysisResult = result;
 
-    updateStep(STEPS, -1, [0, 1, 2, 3, 4]);
+    updateStep(STEPS, -1, [0, 1, 2, 3, 4, 5]);
     statusEl.classList.remove('show');
 
     renderResult(result);
@@ -3181,7 +3195,7 @@ async function handleRefineSearch(r, clearAll) {
   // 입력값 읽기
   let overrides;
   if (clearAll) {
-    overrides = { buildingName: '', area: null, areaTolerance: 0.10 };
+    overrides = { buildingName: '', area: null, areaTolerance: 0.07 };
   } else {
     const bn = (document.getElementById('refine-building-name')?.value || '').trim();
     const areaStr = (document.getElementById('refine-area')?.value || '').trim();
@@ -3256,6 +3270,113 @@ function renderPriceSection(r) {
   renderPriceTableAndRefinePanel(r);
 }
 
+/**
+ * 보조 웹검색 시세를 카드 형태로 렌더.
+ * 국토부 API와 별개로 보조 참고용. 데이터 없으면 빈 문자열.
+ */
+function buildWebPriceCard(webData) {
+  if (!webData || webData.search_success === false) {
+    return `
+      <div style="margin-top:14px;background:#fafafa;border:1px dashed #ddd;border-radius:8px;padding:10px 14px;font-size:12px;color:#888">
+        🌐 <strong>보조 웹 조회</strong>: 유효한 결과 없음 (웹 검색 실패 또는 데이터 부족)
+      </div>`;
+  }
+  const txs = Array.isArray(webData.recent_transactions) ? webData.recent_transactions : [];
+  const avgSale = webData.avg_sale_price;
+  const avgLease = webData.avg_lease_price;
+
+  const summaryParts = [];
+  if (avgSale) summaryParts.push(`매매 평균 <strong>${Number(avgSale).toLocaleString()}만원</strong>`);
+  if (avgLease) summaryParts.push(`전세 평균 <strong>${Number(avgLease).toLocaleString()}만원</strong>`);
+  const summary = summaryParts.length > 0 ? summaryParts.join(' · ') : '평균가 데이터 없음';
+
+  const txRows = txs.slice(0, 10).map(tx => `
+    <tr>
+      <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0">${escapeHtml(tx.date || '-')}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0">${escapeHtml(tx.type || '-')}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0;text-align:right"><strong>${tx.price ? Number(tx.price).toLocaleString() + '만원' : '-'}</strong></td>
+      <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0;text-align:right">${tx.area ? tx.area + '㎡' : '-'}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0">${escapeHtml(tx.floor || '-')}</td>
+    </tr>
+  `).join('');
+
+  const tableHtml = txs.length > 0
+    ? `<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px">
+         <thead>
+           <tr style="background:#f5f5f5">
+             <th style="padding:6px 8px;text-align:left;font-weight:600;color:#555">일자</th>
+             <th style="padding:6px 8px;text-align:left;font-weight:600;color:#555">유형</th>
+             <th style="padding:6px 8px;text-align:right;font-weight:600;color:#555">가격</th>
+             <th style="padding:6px 8px;text-align:right;font-weight:600;color:#555">면적</th>
+             <th style="padding:6px 8px;text-align:left;font-weight:600;color:#555">층</th>
+           </tr>
+         </thead>
+         <tbody>${txRows}</tbody>
+       </table>`
+    : '<div style="padding:10px;text-align:center;color:#888;font-size:12px">거래 내역을 찾지 못했어요</div>';
+
+  return `
+    <details style="margin-top:14px;border:1px solid #d4e5ff;border-radius:8px;padding:0;background:#f8fbff" open>
+      <summary style="cursor:pointer;padding:10px 14px;font-size:12.5px;font-weight:600;color:#2a5bd7;list-style:none;display:flex;justify-content:space-between;align-items:center">
+        <span>🌐 보조 웹 조회 시세 (참고용)</span>
+        <span style="font-size:11px;color:#888">▼</span>
+      </summary>
+      <div style="padding:12px 14px;border-top:1px solid #d4e5ff;background:#fff">
+        <div style="font-size:12.5px;color:#334;line-height:1.7;margin-bottom:4px">${summary}</div>
+        ${webData.price_source ? `<div style="font-size:11px;color:#888">📌 출처: ${escapeHtml(webData.price_source)}</div>` : ''}
+        ${webData.search_note ? `<div style="font-size:11px;color:#888;margin-top:2px">💬 ${escapeHtml(webData.search_note)}</div>` : ''}
+        ${tableHtml}
+        <div style="margin-top:10px;padding:8px 10px;background:#fff7e6;border-left:3px solid #ffd687;font-size:11px;color:#704a00;border-radius:4px">
+          ⚠️ 웹 검색 기반 자료는 참고용이에요. 국토부 공식 API와 교차 확인을 권장해요.
+        </div>
+      </div>
+    </details>`;
+}
+
+/**
+ * 주차별 평균가의 편차를 감지해 "왜 편차가 큰지" 안내 배너를 반환.
+ * 편차가 크지 않으면 빈 문자열.
+ */
+function buildVarianceHint(weekly, qi) {
+  if (!Array.isArray(weekly) || weekly.length < 2) return '';
+  // 매매만 대상
+  const sales = weekly.filter(w => w.type === '매매' && w.avgPrice > 0);
+  if (sales.length < 2) return '';
+
+  const prices = sales.map(w => w.avgPrice);
+  const max = Math.max(...prices);
+  const min = Math.min(...prices);
+  const ratio = max / min;
+  if (ratio < 2.0) return '';   // 2배 미만은 정상 범위로 간주
+
+  // 현재 필터 상태를 보고 추천 메시지 다르게
+  const hasBuildingFilter = qi?.usedBuildingNameFilter;
+  const hasAreaFilter = qi?.usedAreaFilter;
+  const tolPct = Math.round((qi?.areaTolerance ?? 0.07) * 100);
+
+  const tips = [];
+  if (!hasBuildingFilter) {
+    tips.push('💡 <strong>건물명 지정</strong>: 같은 단지만 비교해 편차 확 줄어요');
+  }
+  if (!hasAreaFilter) {
+    tips.push('💡 <strong>면적 필터 적용</strong>: 비슷한 평형만 모아볼 수 있어요');
+  } else if (tolPct > 7) {
+    tips.push(`💡 <strong>면적 허용오차 축소</strong> (현재 ±${tolPct}%): 더 엄격하게 좁혀보세요`);
+  }
+  if (tips.length === 0) {
+    tips.push('💡 같은 시군구 안에서도 건물 상태·연식·층에 따라 가격 편차가 클 수 있어요');
+  }
+
+  const ratioText = ratio >= 10 ? `${ratio.toFixed(1)}배` : `${ratio.toFixed(1)}배`;
+  return `
+    <div style="background:#fff7e6;border:1px solid #ffd687;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;line-height:1.7;color:#704a00">
+      <div style="font-weight:700;margin-bottom:4px">📊 가격 편차가 큰 이유</div>
+      <div>국토부 API는 <strong>시군구 단위</strong>로만 조회돼요. 같은 ${qi?.buildingType || '건물 종류'} 안에서도 연식·상태·층별로 차이가 커서, 이번 조회의 최고가와 최저가가 <strong>${ratioText}</strong> 차이 납니다.</div>
+      <div style="margin-top:6px">${tips.map(t => `<div>${t}</div>`).join('')}</div>
+      <div style="color:#8a6410;font-size:11px;margin-top:6px">※ 아래 "재조회 패널"에서 필터 조정 가능</div>
+    </div>`;
+}
+
 function renderPriceTableAndRefinePanel(r) {
   // renderResult 내부의 가격 테이블 렌더링 블록과 동일한 로직
   // — 코드 중복을 피하려고 별도 함수로 뽑음
@@ -3269,7 +3390,7 @@ function renderPriceTableAndRefinePanel(r) {
   const addressChip = qi.fullAddress
     ? maskAddressDetail(qi.fullAddress)
     : [qi.sido, qi.gu, qi.dong].filter(Boolean).join(' ');
-  const tolPct = Math.round((qi.areaTolerance ?? 0.10) * 100);
+  const tolPct = Math.round((qi.areaTolerance ?? 0.07) * 100);
   const filters = [];
   if (qi.usedBuildingNameFilter) filters.push(`건물명 "${qi.buildingName}" 포함`);
   if (qi.usedAreaFilter) filters.push(`면적 ${qi.area}㎡ ±${tolPct}%`);
@@ -3288,7 +3409,7 @@ function renderPriceTableAndRefinePanel(r) {
         <strong>${wd.totalCount}건</strong>
         ${wd.usedFilter ? `(필터 적용 후 <strong>${wd.filteredCount}건</strong>)` : ''}
       </div>
-    </div>`;
+    </div>` + buildVarianceHint(weekly, qi);
 
   let tableHtml = '';
   let totalOutliers = 0;
@@ -3436,7 +3557,9 @@ function renderPriceTableAndRefinePanel(r) {
       </div>
     </details>`;
 
-  document.getElementById('price-detail-table').innerHTML = queryPanel + tableHtml + refinePanel;
+  const webPanel = buildWebPriceCard(r._webPriceData);
+
+  document.getElementById('price-detail-table').innerHTML = queryPanel + tableHtml + refinePanel + webPanel;
 
   // 이벤트 재바인딩
   const tolSlider = document.getElementById('refine-tolerance');
@@ -3769,7 +3892,7 @@ function renderResult(r) {
       const addressChip = qi.fullAddress
         ? maskAddressDetail(qi.fullAddress)
         : [qi.sido, qi.gu, qi.dong].filter(Boolean).join(' ');
-      const tolPct = Math.round((qi.areaTolerance ?? 0.10) * 100);
+      const tolPct = Math.round((qi.areaTolerance ?? 0.07) * 100);
       const filters = [];
       if (qi.usedBuildingNameFilter) filters.push(`건물명 "${qi.buildingName}" 포함`);
       if (qi.usedAreaFilter) filters.push(`면적 ${qi.area}㎡ ±${tolPct}%`);
