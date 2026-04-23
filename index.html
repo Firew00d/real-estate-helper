@@ -517,7 +517,7 @@
 <header>
   <span>🏠</span>
   <h1>부동산 계약서 AI 분석</h1>
-  <span class="subtitle build-stamp">2026-04-23 12:10</span>
+  <span class="subtitle build-stamp">2026-04-23 12:18</span>
 </header>
 
 <div class="container">
@@ -1338,7 +1338,19 @@ async function extractAddressFromDocs(apiKey, contentArr) {
         type: 'text',
         text: `첨부 서류(등기부등본, 건축물대장, 계약서 등)에서 아래 정보를 추출해 JSON으로만 응답하세요. JSON 외 텍스트 없이.
 
-특히 **등기부등본의 '을구'** 를 꼼꼼히 확인해 근저당권 관련 정보를 정확히 추출하세요:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 최우선 원칙 — 절대 추측·추론·기본값 삽입 금지 🚨
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- 서류에 **명시적으로 적혀있는 글자·숫자만** 추출. 없으면 해당 필드는 **반드시 null**.
+- "아마 이럴 것이다", "보통 이런 값이다" 같은 추정 금지.
+- 계약서만 있고 등기부등본이 없으면 prior_debt, creditor, mortgage_date는 **전부 null**.
+- 계약서 본문이나 특약에 "근저당"이라는 단어가 안 보이면 prior_debt는 null.
+- 흐릿해서 읽기 어렵거나 가려진 부분도 null.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+근저당권 정보는 **등기부등본의 '을구'** 에만 있습니다. 다른 서류(계약서, 건축물대장)에는 없어요.
+등기부등본 을구가 첨부된 경우에만 아래 규칙 적용:
 - 채권최고액 = "prior_debt" (**반드시 만원 단위 정수**로 변환. 예시:
   * "채권최고액 금 2억4천만원" → 24000
   * "채권최고액 금 150,000,000원" → 15000
@@ -1349,11 +1361,12 @@ async function extractAddressFromDocs(apiKey, contentArr) {
 - 설정일자 = "mortgage_date"
 - 기존 특약 중 "잔금과 동시 말소" / "배액배상" / "상환 후 말소" 같은 근저당 말소 조건 문구는 "mortgage_release_clause_exists" 에 true/false 로 판정
 
-⚠️ **근저당권 판별 시 주의사항**:
-- 등기부등본 을구에 "근저당권설정"이 기록되어 있으면 prior_debt에 채권최고액 기재 (말소된 경우만 제외)
-- "근저당권말소"로 표시되어 말소선이 그어진 건 제외
-- 갑구의 소유권이전 관련 '채권최고액' 기재는 근저당이 아니니 제외
-- 서류에 을구가 전혀 보이지 않으면 null (추측 금지)
+⚠️ **근저당권 판별 시 체크리스트**:
+1. 첨부 서류에 "등기사항전부증명서" 또는 "등기부등본"이 있는가? 없으면 → 근저당 필드 전부 null
+2. 을구 섹션이 보이는가? 안 보이면 → null
+3. 을구에 "근저당권설정"이 **명시적으로** 기록되어 있는가? 없으면 → null
+4. "근저당권말소"로 말소선이 그어진 건 → 제외
+5. 갑구의 소유권이전 관련 '채권최고액' 기재는 근저당이 아님 → 제외
 
 {
   "address": "도로명 또는 지번 주소",
@@ -1883,7 +1896,15 @@ async function finalAnalysis(apiKey, contentArr, docInfo, priceData, buildingTyp
 - 채권자(근저당권자): ${docInfo.creditor || '(미확인)'}
 - 설정일자: ${docInfo.mortgage_date || '(미확인)'}
 - 기존 특약에 말소 조건 포함 여부: ${docInfo.mortgage_release_clause_exists ? '✅ 포함됨' : '❌ 없음/불분명'}
-` : '';
+` : `
+[근저당권 현황]
+🚨 제출된 서류에서 근저당권 정보가 전혀 확인되지 않았음.
+→ mortgage_info.has_mortgage는 반드시 **false**로 설정할 것.
+→ max_amount, creditor, mortgage_date, lbr_ratio 등 모든 근저당 관련 필드는 **null**.
+→ required_actions, release_clause_recommendation 등도 빈 배열/null로 두기.
+→ **"근저당이 있을 수도 있다", "미확인이므로 위험 가능"** 같은 추측 문구 금지.
+→ 대신 additional_docs의 '등기부등본' 체크포인트에 "근저당권 설정 여부는 등기부등본 발급 후 확인 필요"로 기재.
+`;
 
   const messages = [{
     role: 'user',
@@ -2029,6 +2050,9 @@ ${mortgageContext}
 3. required_actions는 4단계(계약당일 → 잔금일 → 상환즉시 → 잔금이후) 전부 포함.
 4. release_clause_recommendation은 채권최고액·채권자 실제 값으로 완성된 특약 문구.
 5. 근저당이 없으면 mortgage_info.has_mortgage=false, 나머지 필드는 null/빈배열 가능.
+   - **docInfo.prior_debt가 null/0이면 무조건 has_mortgage=false**. 다른 해석 불가.
+   - 근저당 관련 risks/required_actions 에 "근저당이 있을 수 있으니..." 식의 추측 금지.
+   - risk_level 판정 시 근저당 없음은 '안전 요인' (위험 요인 아님).
 6. **special_clauses는 반드시 객체 배열**:
    - title: 짧고 명확한 제목 (예: '근저당권 말소 특약', '보증금 반환 보장 조항')
    - full_text: **계약서에 복사-붙여넣기로 바로 사용 가능한 완전한 특약 문구**
@@ -3075,6 +3099,20 @@ async function analyze() {
 
     // 계약 유형 자동 판별 (월세 값 있으면 월세, 없으면 전세)
     selectedContractType = inferContractType(docInfo);
+
+    // 🛡️ 근저당 정보 무결성 검증
+    // prior_debt 값은 있지만 creditor도 mortgage_date도 없으면 → AI 환각 가능성 높음
+    // 채권최고액만 떠있는 근저당권은 현실에서 거의 없음
+    if (docInfo) {
+      const hasMoreThanDebt = docInfo.creditor || docInfo.mortgage_date;
+      if (docInfo.prior_debt && Number(docInfo.prior_debt) > 0 && !hasMoreThanDebt) {
+        console.warn('[근저당 환각 의심] prior_debt는 있지만 채권자·설정일자 없음 → null로 리셋');
+        docInfo.prior_debt = null;
+        docInfo.creditor = null;
+        docInfo.mortgage_date = null;
+        docInfo.mortgage_release_clause_exists = false;
+      }
+    }
 
     updateStep(STEPS, 2, [0, 1]);
     let priceData = null;
