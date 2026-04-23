@@ -1362,8 +1362,19 @@ async function extractAddressFromDocs(apiKey, contentArr) {
   "building_type": "아파트/연립다세대/오피스텔/단독다가구 중 하나 (불분명하면 null)",
   "floor": "층수 (없으면 null)",
   "area": "전용면적 숫자만 (㎡, 없으면 null)",
+  "land_category": "토지 지목 (예: 대, 전, 답 / 없으면 null)",
+  "land_area": "토지 면적 숫자만 (㎡, 없으면 null)",
+  "land_right_type": "대지권종류 (예: 소유권대지권 / 없으면 null)",
+  "land_right_ratio": "대지권비율 (예: 12345.67분의 45.67 / 없으면 null)",
+  "building_structure": "건물 구조 (예: 철근콘크리트조 / 없으면 null)",
+  "building_usage": "건물 용도 (예: 공동주택, 아파트 / 없으면 null)",
+  "building_area": "건물 면적 숫자만 (㎡, 없으면 null, 집합건물이면 area와 같을 수 있음)",
+  "rental_part": "임대할 부분 (예: '전체', '제202호' / 없으면 null)",
+  "rental_part_area": "임대할 부분 면적 숫자만 (㎡, 없으면 area와 동일)",
   "lease_price": "전세금 또는 보증금 숫자만 (만원 단위, 없으면 null)",
   "monthly_rent": "월세 숫자만 (만원, 없으면 null)",
+  "monthly_rent_day": "월세 지급일 (1~31 숫자만, 없으면 null)",
+  "monthly_rent_account": "월세 입금계좌 (예: '국민은행 123-45-67890 홍길동', 없으면 null)",
   "prior_debt": "근저당 채권최고액 숫자만 (만원, 없으면 null)",
   "creditor": "근저당권자(은행/법인/개인)명 (없으면 null, 예: '국민은행', '농협은행 서울지점')",
   "mortgage_date": "근저당 설정일자 YYYY-MM-DD (없으면 null)",
@@ -2476,7 +2487,25 @@ async function generateContractFromTemplate(docInfo, missingClauses, contractTyp
     return `${m[1]}년 ${m[2].padStart(2,'0')}월 ${m[3].padStart(2,'0')}일`;
   };
 
-  // 빈 <w:p>에 텍스트 주입하는 런 생성
+  // ─── 스타일 추출 헬퍼 ─────────────────────────────
+  // <w:p> 블록 안의 <w:pPr>/<w:rPr>에서 run용 <w:rPr> 조각을 뽑거나,
+  // 기존 <w:r>의 <w:rPr>를 그대로 복제. 둘 다 못 찾으면 기본 스타일 사용.
+  function extractRPrFromParagraph(pBlock) {
+    // 우선순위 1: 이 <w:p> 안에 이미 <w:r><w:rPr>…</w:rPr></w:r>가 있다면 그걸 복사
+    const runRprMatch = pBlock.match(/<w:r\b[^>]*>\s*<w:rPr>([\s\S]*?)<\/w:rPr>/);
+    if (runRprMatch) return `<w:rPr>${runRprMatch[1]}</w:rPr>`;
+    // 우선순위 2: <w:pPr><w:rPr>…</w:rPr></w:pPr> (문단 기본 run 스타일)
+    const pprRprMatch = pBlock.match(/<w:pPr>[\s\S]*?<w:rPr>([\s\S]*?)<\/w:rPr>[\s\S]*?<\/w:pPr>/);
+    if (pprRprMatch) return `<w:rPr>${pprRprMatch[1]}</w:rPr>`;
+    // 우선순위 3: 기본
+    return `<w:rPr><w:rFonts w:asciiTheme="majorHAnsi" w:eastAsiaTheme="majorHAnsi" w:hAnsiTheme="majorHAnsi"/><w:sz w:val="16"/></w:rPr>`;
+  }
+
+  // 스타일 조각(rPrXml)을 받아 run XML 생성 (해당 문단의 기존 스타일 그대로 복제)
+  function buildRun(text, rPrXml) {
+    return `<w:r>${rPrXml}<w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r>`;
+  }
+  // 하위호환용 (구버전 호출) — 기본 스타일 사용
   const makeRun = (text) =>
     `<w:r><w:rPr><w:rFonts w:asciiTheme="majorHAnsi" w:eastAsiaTheme="majorHAnsi" w:hAnsiTheme="majorHAnsi"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r>`;
 
@@ -2491,61 +2520,59 @@ async function generateContractFromTemplate(docInfo, missingClauses, contractTyp
       if (altIdx < 0) return haystack;
     }
     const searchStart = (lmIdx >= 0 ? lmIdx : haystack.indexOf(landmark));
-    // 이 랜드마크 다음 첫 빈 <w:p>…</w:p> 찾기 (런 없는 것)
-    // 매칭: <w:p ...>...(runs 없음)...</w:p> — 정확히는 <w:r>가 없는 것
     const rest = haystack.slice(searchStart);
-    // 가장 가까운 <w:p>...</w:p> 블록을 순회하며 <w:r>이 없는 것 찾기
     const pRegex = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g;
     let m;
     while ((m = pRegex.exec(rest)) !== null) {
       const content = m[1];
       if (!/<w:r\b/.test(content)) {
-        // 빈 <w:p> 발견 → 안에 run 삽입
-        const before = haystack.slice(0, searchStart + m.index);
+        // 빈 <w:p> 발견 → 안에 run 삽입 (해당 <w:p>의 rPr 스타일 사용)
         const pTag = m[0];
-        const inner = m[1];
-        // </w:pPr> 직후 또는 <w:p ...> 직후에 run 삽입
+        const rPrXml = extractRPrFromParagraph(pTag);
+        const runXml = buildRun(value, rPrXml);
+        const before = haystack.slice(0, searchStart + m.index);
         let newP;
-        if (inner.includes('</w:pPr>')) {
-          newP = pTag.replace('</w:pPr>', `</w:pPr>${makeRun(value)}`);
+        if (m[1].includes('</w:pPr>')) {
+          newP = pTag.replace('</w:pPr>', `</w:pPr>${runXml}`);
         } else {
-          // <w:p ...> 여는 태그 바로 뒤에 삽입
-          newP = pTag.replace(/^(<w:p\b[^>]*>)/, `$1${makeRun(value)}`);
+          newP = pTag.replace(/^(<w:p\b[^>]*>)/, `$1${runXml}`);
         }
         const after = haystack.slice(searchStart + m.index + m[0].length);
         return before + newP + after;
       }
     }
-    return haystack;   // 빈 <w:p> 못 찾으면 원본 반환
+    return haystack;
   }
 
   // ─── 2) 랜드마크가 포함된 <w:tc>…</w:tc> 안의 모든 런의 텍스트를 새 값으로 교체
   //     "보증금 셀" 같이 기존 내용(금 정 (₩)) 을 통째로 바꿀 때 사용
+  //     기존 <w:r>의 rPr(스타일)을 추출해 새 run에 적용 → 원본 폰트/크기 유지
   function replaceCellAfterLandmark(haystack, landmark, newText) {
     if (!newText) return haystack;
     const lmIdx = haystack.indexOf(`<w:t>${landmark}</w:t>`);
     if (lmIdx < 0) return haystack;
 
-    // 랜드마크 뒤의 첫 </w:tc> 찾기 (라벨 셀 끝)
     const afterLmEnd = haystack.indexOf('</w:tc>', lmIdx);
     if (afterLmEnd < 0) return haystack;
-
-    // 그 다음 <w:tc> (값 셀 시작)
     const valueTcStart = haystack.indexOf('<w:tc', afterLmEnd);
     if (valueTcStart < 0) return haystack;
-
-    // 값 셀의 끝 </w:tc>
     const valueTcEnd = haystack.indexOf('</w:tc>', valueTcStart);
     if (valueTcEnd < 0) return haystack;
 
     const tcBlock = haystack.slice(valueTcStart, valueTcEnd);
-    // 이 셀 안의 모든 <w:r>…</w:r>를 제거하고 첫 <w:p> 안에 새 run 하나만 삽입
+    // 이 셀의 첫 <w:p>에서 스타일(rPr) 추출
+    const firstPMatch = tcBlock.match(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/);
+    const rPrXml = firstPMatch
+      ? extractRPrFromParagraph(firstPMatch[0])
+      : `<w:rPr><w:rFonts w:asciiTheme="majorHAnsi" w:eastAsiaTheme="majorHAnsi" w:hAnsiTheme="majorHAnsi"/><w:sz w:val="16"/></w:rPr>`;
+
+    // 모든 <w:r> 제거 후 첫 <w:p>에 새 run 하나만 삽입
     let newTcBlock = tcBlock.replace(/<w:r\b[^>]*>[\s\S]*?<\/w:r>/g, '');
-    // 첫 <w:p>의 </w:pPr> 뒤(있다면)에 새 run 추가, 없으면 <w:p ...> 여는 태그 뒤에
+    const runXml = buildRun(newText, rPrXml);
     if (newTcBlock.includes('</w:pPr>')) {
-      newTcBlock = newTcBlock.replace('</w:pPr>', `</w:pPr>${makeRun(newText)}`);
+      newTcBlock = newTcBlock.replace('</w:pPr>', `</w:pPr>${runXml}`);
     } else {
-      newTcBlock = newTcBlock.replace(/<w:p\b[^>]*>/, (tag) => `${tag}${makeRun(newText)}`);
+      newTcBlock = newTcBlock.replace(/<w:p\b[^>]*>/, (tag) => `${tag}${runXml}`);
     }
     return haystack.slice(0, valueTcStart) + newTcBlock + haystack.slice(valueTcEnd);
   }
@@ -2554,7 +2581,6 @@ async function generateContractFromTemplate(docInfo, missingClauses, contractTyp
   //     N번째 등장한 랜드마크 기준으로 replaceCellAfterLandmark 실행
   function replaceCellAfterNthLandmark(haystack, landmark, n, newText) {
     if (!newText) return haystack;
-    // n번째 등장 찾기
     const target = `<w:t>${landmark}</w:t>`;
     let searchFrom = 0;
     let lmIdx = -1;
@@ -2570,11 +2596,17 @@ async function generateContractFromTemplate(docInfo, missingClauses, contractTyp
     const valueTcEnd = haystack.indexOf('</w:tc>', valueTcStart);
     if (valueTcEnd < 0) return haystack;
     const tcBlock = haystack.slice(valueTcStart, valueTcEnd);
+    // 스타일 추출
+    const firstPMatch = tcBlock.match(/<w:p\b[^>]*>[\s\S]*?<\/w:p>/);
+    const rPrXml = firstPMatch
+      ? extractRPrFromParagraph(firstPMatch[0])
+      : `<w:rPr><w:rFonts w:asciiTheme="majorHAnsi" w:eastAsiaTheme="majorHAnsi" w:hAnsiTheme="majorHAnsi"/><w:sz w:val="16"/></w:rPr>`;
     let newTcBlock = tcBlock.replace(/<w:r\b[^>]*>[\s\S]*?<\/w:r>/g, '');
+    const runXml = buildRun(newText, rPrXml);
     if (newTcBlock.includes('</w:pPr>')) {
-      newTcBlock = newTcBlock.replace('</w:pPr>', `</w:pPr>${makeRun(newText)}`);
+      newTcBlock = newTcBlock.replace('</w:pPr>', `</w:pPr>${runXml}`);
     } else {
-      newTcBlock = newTcBlock.replace(/<w:p\b[^>]*>/, (tag) => `${tag}${makeRun(newText)}`);
+      newTcBlock = newTcBlock.replace(/<w:p\b[^>]*>/, (tag) => `${tag}${runXml}`);
     }
     return haystack.slice(0, valueTcStart) + newTcBlock + haystack.slice(valueTcEnd);
   }
@@ -2582,6 +2614,43 @@ async function generateContractFromTemplate(docInfo, missingClauses, contractTyp
   // ─── 실제 값 주입 ────────────────────────────────────
   // (a) 부동산 표시 섹션 — 소재지
   xml = injectAfterLandmark(xml, '소 재 지', data.address || '');
+
+  // (a-2) 토지 정보: 지목 / 면적(첫 번째) / 대지권종류 / 대지권비율
+  if (data.land_category) {
+    xml = replaceCellAfterLandmark(xml, '지 목', data.land_category);
+  }
+  // "면 적"은 템플릿에서 3번 등장: 1) 토지면적 2) 건물면적 3) 임대할부분 면적
+  if (data.land_area) {
+    xml = replaceCellAfterNthLandmark(xml, '면 적', 1, `${data.land_area} ㎡`);
+  }
+  if (data.land_right_type) {
+    xml = replaceCellAfterLandmark(xml, '대지권종류', data.land_right_type);
+  }
+  if (data.land_right_ratio) {
+    xml = replaceCellAfterLandmark(xml, '대지권비율', data.land_right_ratio);
+  }
+
+  // (a-3) 건물 정보: 구조 / 용도 / 면적(긴 라벨 "면      적")
+  if (data.building_structure) {
+    xml = replaceCellAfterLandmark(xml, '구 조', data.building_structure);
+  }
+  if (data.building_usage) {
+    xml = replaceCellAfterLandmark(xml, '용 도', data.building_usage);
+  }
+  // "면      적"(긴 공백)은 2번 등장: 1) 건물 면적 2) 임대할부분 면적
+  if (data.building_area || data.area) {
+    const bldgArea = data.building_area || data.area;
+    xml = replaceCellAfterNthLandmark(xml, '면      적', 1, `${bldgArea} ㎡`);
+  }
+
+  // (a-4) 임대할 부분
+  if (data.rental_part) {
+    xml = replaceCellAfterLandmark(xml, '임대할부분', data.rental_part);
+  }
+  if (data.rental_part_area || data.area) {
+    const rentArea = data.rental_part_area || data.area;
+    xml = replaceCellAfterNthLandmark(xml, '면      적', 2, `${rentArea} ㎡`);
+  }
 
   // (b) 계약 내용 — 보증금/계약금/잔금/차임
   if (data.lease_price) {
@@ -2598,7 +2667,8 @@ async function generateContractFromTemplate(docInfo, missingClauses, contractTyp
   }
   if (data.monthly_rent) {
     const day = data.monthly_rent_day ? `${data.monthly_rent_day}일` : '     일';
-    const txt = `${formatMoney(data.monthly_rent)}은 매월 ${day}에 지급한다.`;
+    const acct = data.monthly_rent_account ? ` (입금계좌: ${data.monthly_rent_account})` : '';
+    const txt = `${formatMoney(data.monthly_rent)}은 매월 ${day}에 지급한다.${acct}`;
     xml = replaceCellAfterLandmark(xml, '차임(월세)', txt);
   }
 
@@ -2672,18 +2742,34 @@ function injectClausesAfterLandmark(xml, landmark, clauseItems) {
 
   // 라벨 문단 뒤 ~ 셀 끝까지 = "1." / "2." 샘플 영역 (삭제 대상)
   const headerPart = tcBlock.slice(0, afterLabelP);
-  // const bodyPart = tcBlock.slice(afterLabelP);   // <- 이건 삭제하고 대체
+  const bodyPart = tcBlock.slice(afterLabelP);   // 원본 샘플에서 스타일 뽑기용
 
-  // 삽입할 XML 생성
+  // 원본 샘플 문단("1." 등)에서 <w:pPr>와 <w:rPr> 추출 → 동일 스타일로 우리 특약 생성
+  // 샘플 <w:p>가 있으면 그걸 복제 기반으로, 없으면 기본 스타일
+  let sampleRpr = `<w:rPr><w:rFonts w:ascii="돋움체" w:eastAsia="돋움체" w:hAnsi="돋움체"/><w:sz w:val="14"/><w:shd w:val="clear" w:color="000000" w:fill="auto"/></w:rPr>`;
+  let samplePpr = `<w:pPr><w:pStyle w:val="a3"/><w:spacing w:line="240" w:lineRule="auto"/></w:pPr>`;
+  const sampleMatch = bodyPart.match(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/);
+  if (sampleMatch) {
+    const samplePBlock = sampleMatch[0];
+    const pprMatch = samplePBlock.match(/<w:pPr>[\s\S]*?<\/w:pPr>/);
+    if (pprMatch) samplePpr = pprMatch[0];
+    // run의 rPr을 우선적으로 사용
+    const runRprMatch = samplePBlock.match(/<w:r\b[^>]*>\s*<w:rPr>([\s\S]*?)<\/w:rPr>/);
+    if (runRprMatch) {
+      sampleRpr = `<w:rPr>${runRprMatch[1]}</w:rPr>`;
+    }
+  }
+
+  // 삽입할 XML — 원본 샘플 스타일(pPr + rPr) 그대로 사용
   const clauseParagraphs = clauseItems.map((c, i) => {
     const lines = c.split('\n').filter(l => l.trim());
     return lines.map((line, j) => {
       const prefix = j === 0 ? `${i + 1}. ` : '   ';
-      return `<w:p><w:pPr><w:pStyle w:val="a3"/><w:spacing w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr><w:rFonts w:asciiTheme="majorHAnsi" w:eastAsiaTheme="majorHAnsi" w:hAnsiTheme="majorHAnsi"/><w:sz w:val="16"/></w:rPr><w:t xml:space="preserve">${escapeXml(prefix + line)}</w:t></w:r></w:p>`;
+      return `<w:p>${samplePpr}<w:r>${sampleRpr}<w:t xml:space="preserve">${escapeXml(prefix + line)}</w:t></w:r></w:p>`;
     }).join('');
   }).join('');
 
-  // 새 셀 블록 조립: [라벨 <w:p>] + [우리 특약들] + </w:tc>
+  // 새 셀 블록 조립: [라벨 <w:p>] + [우리 특약들 — 원본 샘플 스타일] + </w:tc>
   const newTcBlock = headerPart + clauseParagraphs + '</w:tc>';
 
   return xml.slice(0, tcStart) + newTcBlock + xml.slice(tcEnd);
@@ -2705,35 +2791,36 @@ function injectAddressBeforeNthLandmark(xml, landmark, n, addressValue, makeRun)
     if (lmIdx < 0) return xml;
     searchFrom = lmIdx + target.length;
   }
-  // 이 랜드마크가 속한 <w:tr> 시작 위치 찾기 (해당 위치 앞쪽으로 <w:tr>)
   const trStart = xml.lastIndexOf('<w:tr', lmIdx);
   if (trStart < 0) return xml;
-  // 그 전의 <w:tr>…</w:tr>을 찾기 = 주소 행
   const prevTrEnd = xml.lastIndexOf('</w:tr>', trStart);
   if (prevTrEnd < 0) return xml;
   const prevTrStart = xml.lastIndexOf('<w:tr', prevTrEnd);
   if (prevTrStart < 0) return xml;
 
   const prevTrBlock = xml.slice(prevTrStart, prevTrEnd + '</w:tr>'.length);
-  // 이 행 안의 모든 <w:p>…</w:p> 순회해서 내용이 없는 것 중 가장 넓은(마지막) 셀의 <w:p>를 찾기
-  // 간단하게: 이 행 안의 마지막 <w:p>(런이 없는 것)을 타겟
   const pRegex = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/g;
   let lastEmptyMatch = null;
   let m;
   while ((m = pRegex.exec(prevTrBlock)) !== null) {
-    if (!/<w:r\b/.test(m[1])) {
-      lastEmptyMatch = m;
-    }
+    if (!/<w:r\b/.test(m[1])) lastEmptyMatch = m;
   }
   if (!lastEmptyMatch) return xml;
 
-  // lastEmptyMatch 위치에 run 삽입
+  // 해당 문단의 <w:pPr><w:rPr>에서 스타일 추출 → 동일 스타일의 run 생성
   const pTag = lastEmptyMatch[0];
+  // pPr 안의 rPr (문단 기본 run 스타일)
+  const pprRprMatch = pTag.match(/<w:pPr>[\s\S]*?<w:rPr>([\s\S]*?)<\/w:rPr>[\s\S]*?<\/w:pPr>/);
+  const rPrXml = pprRprMatch
+    ? `<w:rPr>${pprRprMatch[1]}</w:rPr>`
+    : `<w:rPr><w:rFonts w:asciiTheme="majorHAnsi" w:eastAsiaTheme="majorHAnsi" w:hAnsiTheme="majorHAnsi"/><w:sz w:val="14"/></w:rPr>`;
+  const runXml = `<w:r>${rPrXml}<w:t xml:space="preserve">${escapeXml(addressValue)}</w:t></w:r>`;
+
   let newP;
   if (lastEmptyMatch[1].includes('</w:pPr>')) {
-    newP = pTag.replace('</w:pPr>', `</w:pPr>${makeRun(addressValue)}`);
+    newP = pTag.replace('</w:pPr>', `</w:pPr>${runXml}`);
   } else {
-    newP = pTag.replace(/^(<w:p\b[^>]*>)/, `$1${makeRun(addressValue)}`);
+    newP = pTag.replace(/^(<w:p\b[^>]*>)/, `$1${runXml}`);
   }
   const absMatchStart = prevTrStart + lastEmptyMatch.index;
   return xml.slice(0, absMatchStart) + newP + xml.slice(absMatchStart + lastEmptyMatch[0].length);
