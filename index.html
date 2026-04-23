@@ -1213,7 +1213,7 @@ function normalizeWorkerToPriceData(wd, buildingType) {
   };
 }
 
-async function fetchMolitPrice(info, buildingType, tradeType) {
+async function fetchMolitPrice(info, buildingType, tradeType, overrides = {}) {
   const code = findSigunguCode(info.si, info.gu);
   if (!code) return { error: `법정동코드를 찾을 수 없어요 (${info.si || ''} ${info.gu || ''})` };
 
@@ -1222,12 +1222,18 @@ async function fetchMolitPrice(info, buildingType, tradeType) {
     buildingType,
     tradeType,
     months: '3',            // 최근 3개월 데이터로 주차별 집계
+    areaTolerance: String(overrides.areaTolerance ?? 0.10),  // 기본 ±10%
   });
-  // 단독/다가구는 건물명 필드 자체가 없으므로 전달하지 않음
-  if (info.building_name && buildingType !== '단독다가구') {
-    params.set('buildingName', info.building_name);
+  // overrides.buildingName이 빈 문자열이면 필터 완전 제거, 값 있으면 override
+  const effectiveBuildingName = overrides.buildingName !== undefined
+    ? overrides.buildingName
+    : info.building_name;
+  if (effectiveBuildingName && buildingType !== '단독다가구') {
+    params.set('buildingName', effectiveBuildingName);
   }
-  if (info.area) params.set('area', String(info.area));
+  // overrides.area === null이면 면적 필터 제거
+  const effectiveArea = overrides.area !== undefined ? overrides.area : info.area;
+  if (effectiveArea) params.set('area', String(effectiveArea));
 
   const url = `${API_BASE_URL}/api/realestate?${params.toString()}`;
   const resp = await fetch(url);
@@ -1237,15 +1243,15 @@ async function fetchMolitPrice(info, buildingType, tradeType) {
   return json;
 }
 
-async function searchRealPrice(apiKey, info, buildingType) {
+async function searchRealPrice(apiKey, info, buildingType, overrides = {}) {
   const type = buildingType || info.building_type || '아파트';
 
   // 1) 국토부 API를 먼저 시도 (매매 + 전월세 병렬)
   if (API_BASE_URL && !API_BASE_URL.includes('YOUR-PROJECT')) {
     try {
       const [saleRes, rentRes] = await Promise.all([
-        fetchMolitPrice(info, type, '매매'),
-        fetchMolitPrice(info, type, '전월세'),
+        fetchMolitPrice(info, type, '매매', overrides),
+        fetchMolitPrice(info, type, '전월세', overrides),
       ]);
       const sale = saleRes && !saleRes.error ? saleRes : null;
       const rent = rentRes && !rentRes.error ? rentRes : null;
@@ -1284,6 +1290,12 @@ async function searchRealPrice(apiKey, info, buildingType) {
         // 조회에 사용된 메타 정보 (UI에 표시할 내용)
         // ──────────────────────────────────────────────────────
         const sigunguCode = findSigunguCode(info.si, info.gu);
+        // overrides가 있으면 그 값이 실제 사용된 값 (무시값도 반영)
+        const effectiveBuildingName = overrides.buildingName !== undefined
+          ? overrides.buildingName
+          : info.building_name;
+        const effectiveArea = overrides.area !== undefined ? overrides.area : info.area;
+        const effectiveAreaTolerance = overrides.areaTolerance ?? 0.10;
         const queryInfo = {
           sido: info.si || '',
           gu: info.gu || '',
@@ -1291,11 +1303,15 @@ async function searchRealPrice(apiKey, info, buildingType) {
           fullAddress: info.address || '',
           sigunguCode,
           buildingType: type,
-          buildingName: info.building_name || '',
-          area: info.area || null,
-          usedBuildingNameFilter: !!(info.building_name && type !== '단독다가구'),
-          usedAreaFilter: !!info.area,
+          buildingName: effectiveBuildingName || '',
+          area: effectiveArea || null,
+          areaTolerance: effectiveAreaTolerance,
+          usedBuildingNameFilter: !!(effectiveBuildingName && type !== '단독다가구'),
+          usedAreaFilter: !!effectiveArea,
           periodMonths: 3,
+          // 원본 서류에서 추출된 값(사용자 재조회 패널에서 참고용)
+          originalBuildingName: info.building_name || '',
+          originalArea: info.area || null,
         };
 
         const combined = {
@@ -1355,6 +1371,8 @@ function getIsoWeekKey(tx) {
 
 /**
  * 한 주차·거래유형 버킷을 평균 등 통계로 압축
+ * + IQR 이상치 제거 (원본 대비 어떤 게 제외됐는지 메타데이터 포함)
+ * + 가격대 클러스터 자동 감지 (편차가 크면 저가/고가 그룹 분리)
  */
 function aggregateWeek(bucket) {
   const { weekKey, type, txs } = bucket;
@@ -1362,41 +1380,144 @@ function aggregateWeek(bucket) {
 
   // 가격 필드 (매매는 price, 전월세는 deposit)
   const priceField = type === '매매' ? 'price' : 'deposit';
-  const prices = txs.map(t => t[priceField]).filter(n => n && n > 0);
-  if (prices.length === 0) return null;
+  const priced = txs.filter(t => t[priceField] && t[priceField] > 0);
+  if (priced.length === 0) return null;
 
-  const avg = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
-  const sortedPrices = [...prices].sort((a, b) => a - b);
-  const median = sortedPrices.length % 2
-    ? sortedPrices[(sortedPrices.length - 1) / 2]
-    : Math.round((sortedPrices[sortedPrices.length/2 - 1] + sortedPrices[sortedPrices.length/2]) / 2);
+  const rawPrices = priced.map(t => t[priceField]).sort((a, b) => a - b);
 
-  // 면적·월세 평균도 같이
-  const areas = txs.map(t => t.area).filter(n => n && n > 0);
+  // ──────────────────────────────────────────────
+  // (1) IQR 기반 이상치(outlier) 제거
+  //     표본이 4개 이상이어야 의미 있는 판정 가능
+  // ──────────────────────────────────────────────
+  const n = rawPrices.length;
+  let cleanTxs = priced;
+  let outliers = [];
+  if (n >= 4) {
+    const q1 = percentile(rawPrices, 0.25);
+    const q3 = percentile(rawPrices, 0.75);
+    const iqr = q3 - q1;
+    const lo = q1 - iqr * 1.5;
+    const hi = q3 + iqr * 1.5;
+    cleanTxs = priced.filter(t => t[priceField] >= lo && t[priceField] <= hi);
+    outliers = priced.filter(t => t[priceField] < lo || t[priceField] > hi);
+  }
+  if (cleanTxs.length === 0) cleanTxs = priced;   // 안전장치
+
+  // ──────────────────────────────────────────────
+  // (2) 클러스터링 — 가격대가 명확히 갈리면 저가/고가 분리
+  //     (최대/최소 비율이 2배 초과 & 간격이 전체 평균의 40% 초과할 때)
+  // ──────────────────────────────────────────────
+  const cleanPrices = cleanTxs.map(t => t[priceField]).sort((a, b) => a - b);
+  const clusters = detectClusters(cleanPrices, cleanTxs, priceField);
+
+  // ──────────────────────────────────────────────
+  // (3) 대표 통계 계산 (이상치 제거 후 데이터 기준)
+  // ──────────────────────────────────────────────
+  const avg = Math.round(cleanPrices.reduce((a, b) => a + b, 0) / cleanPrices.length);
+  const median = percentile(cleanPrices, 0.50);
+
+  // 면적·월세 평균 (이상치 제거된 표본 기준)
+  const areas = cleanTxs.map(t => t.area).filter(n => n && n > 0);
   const avgArea = areas.length
     ? Math.round(areas.reduce((a, b) => a + b, 0) / areas.length * 10) / 10
     : null;
   const rents = type === '전월세'
-    ? txs.map(t => t.monthlyRent).filter(n => n && n > 0)
+    ? cleanTxs.map(t => t.monthlyRent).filter(n => n && n > 0)
     : [];
   const avgMonthlyRent = rents.length
     ? Math.round(rents.reduce((a, b) => a + b, 0) / rents.length)
     : null;
 
-  // 주차를 "YYYY-MM-DD ~ DD" 보기 좋게 표시
   const label = formatWeekRange(weekKey);
 
   return {
     weekKey,
     weekLabel: label,
     type,
-    count: txs.length,
+    count: cleanTxs.length,          // 이상치 제거 후 건수
+    originalCount: priced.length,    // 원본 건수
+    outlierCount: outliers.length,
     avgPrice: avg,
-    medianPrice: median,
-    minPrice: sortedPrices[0],
-    maxPrice: sortedPrices[sortedPrices.length - 1],
+    medianPrice: Math.round(median),
+    minPrice: cleanPrices[0],
+    maxPrice: cleanPrices[cleanPrices.length - 1],
     avgArea,
     avgMonthlyRent,
+    clusters,                         // [{label, count, avg, min, max, avgArea}] 또는 null
+    // 원본 가격대 표시용 (이상치 존재 알림)
+    rawMinPrice: rawPrices[0],
+    rawMaxPrice: rawPrices[rawPrices.length - 1],
+  };
+}
+
+/** 정렬된 배열에서 p분위수 (p=0.25 등) 계산 */
+function percentile(sortedArr, p) {
+  const n = sortedArr.length;
+  if (n === 0) return 0;
+  const idx = (n - 1) * p;
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  if (lo === hi) return sortedArr[lo];
+  const frac = idx - lo;
+  return sortedArr[lo] * (1 - frac) + sortedArr[hi] * frac;
+}
+
+/**
+ * 가격 분포에서 명확한 그룹(클러스터) 감지.
+ * - 최대/최소 비율 ≥ 2.0 AND 가장 큰 간격이 평균의 40% 초과 → 2개 그룹으로 분리
+ * - 그 외에는 null 반환 (단일 그룹으로 표시)
+ *
+ * @param {number[]} sortedPrices  오름차순 정렬된 가격
+ * @param {Object[]} txs           sortedPrices와 같은 순서의 거래 객체
+ * @param {string} priceField      'price' or 'deposit'
+ */
+function detectClusters(sortedPrices, txs, priceField) {
+  const n = sortedPrices.length;
+  if (n < 4) return null;  // 표본 적으면 클러스터링 의미 없음
+
+  const min = sortedPrices[0];
+  const max = sortedPrices[n - 1];
+  if (min === 0 || max / min < 2.0) return null;  // 편차 작음 → 단일 그룹
+
+  // 인접 가격 간 gap 계산해서 가장 큰 gap 위치 찾기
+  let maxGap = 0, splitIdx = -1;
+  for (let i = 1; i < n; i++) {
+    const gap = sortedPrices[i] - sortedPrices[i - 1];
+    if (gap > maxGap) { maxGap = gap; splitIdx = i; }
+  }
+
+  const mean = sortedPrices.reduce((a, b) => a + b, 0) / n;
+  // gap이 평균의 40% 초과여야 의미있는 분리
+  if (maxGap < mean * 0.40) return null;
+
+  // txs를 정렬된 순서에 맞게 재정렬
+  const sortedTxs = [...txs].sort((a, b) => a[priceField] - b[priceField]);
+  const lowGroup  = sortedTxs.slice(0, splitIdx);
+  const highGroup = sortedTxs.slice(splitIdx);
+
+  // 두 그룹 다 최소 2건 이상이어야 의미 있음
+  if (lowGroup.length < 2 || highGroup.length < 2) return null;
+
+  return [
+    buildClusterStats('저가 그룹', lowGroup, priceField),
+    buildClusterStats('고가 그룹', highGroup, priceField),
+  ];
+}
+
+function buildClusterStats(label, group, priceField) {
+  const prices = group.map(t => t[priceField]).sort((a, b) => a - b);
+  const avg = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
+  const areas = group.map(t => t.area).filter(n => n && n > 0);
+  const avgArea = areas.length
+    ? Math.round(areas.reduce((a, b) => a + b, 0) / areas.length * 10) / 10
+    : null;
+  return {
+    label,
+    count: group.length,
+    avg,
+    min: prices[0],
+    max: prices[prices.length - 1],
+    avgArea,
   };
 }
 
@@ -1784,6 +1905,289 @@ async function analyze() {
   }
 }
 
+/**
+ * 재조회 — 사용자가 필터 조건을 수정하고 버튼을 누르면 호출.
+ * @param {Object} r  기존 분석 결과 (lastAnalysisResult)
+ * @param {boolean} clearAll  true면 모든 필터 해제하고 시군구 전체 재조회
+ */
+async function handleRefineSearch(r, clearAll) {
+  const statusEl = document.getElementById('refine-status');
+  const btn = document.getElementById('refine-search-btn');
+  const clearBtn = document.getElementById('refine-clear-btn');
+  if (!statusEl || !btn) return;
+
+  // 입력값 읽기
+  let overrides;
+  if (clearAll) {
+    overrides = { buildingName: '', area: null, areaTolerance: 0.10 };
+  } else {
+    const bn = (document.getElementById('refine-building-name')?.value || '').trim();
+    const areaStr = (document.getElementById('refine-area')?.value || '').trim();
+    const tolStr = document.getElementById('refine-tolerance')?.value || '10';
+    overrides = {
+      buildingName: bn,
+      area: areaStr ? parseFloat(areaStr) : null,
+      areaTolerance: Math.max(5, Math.min(30, parseFloat(tolStr))) / 100,
+    };
+  }
+
+  statusEl.style.display = 'block';
+  statusEl.style.color = '#4a7cf7';
+  statusEl.innerHTML = '<span class="mini-spinner"></span> 재조회 중...';
+  btn.disabled = true;
+  if (clearBtn) clearBtn.disabled = true;
+
+  try {
+    const docInfo = r._docInfo || {};
+    const buildingType = r._priceData?.building_type_used || docInfo.building_type || '아파트';
+    const newPriceData = await searchRealPrice(null, docInfo, buildingType, overrides);
+
+    if (!newPriceData) throw new Error('조회 결과가 없어요');
+
+    // 기존 result 객체에 갱신된 priceData 주입
+    r._priceData = newPriceData;
+    lastAnalysisResult = r;
+
+    // 가격 테이블/패널만 다시 렌더링
+    renderPriceSection(r);
+
+    const wd = newPriceData._workerData;
+    if (wd) {
+      statusEl.style.color = '#1a7f44';
+      statusEl.innerHTML = `✅ 재조회 완료 · 전체 ${wd.totalCount}건${wd.usedFilter ? ` → 필터 적용 후 ${wd.filteredCount}건` : ''}`;
+    } else {
+      statusEl.style.color = '#996600';
+      statusEl.innerHTML = '⚠️ 조회는 됐지만 국토부 API 응답이 아니에요';
+    }
+    // 3초 후 상태 숨김
+    setTimeout(() => { if (statusEl) statusEl.style.display = 'none'; }, 3000);
+  } catch (e) {
+    statusEl.style.color = '#c0392b';
+    statusEl.innerHTML = `❌ 재조회 실패: ${e.message}`;
+  } finally {
+    btn.disabled = false;
+    if (clearBtn) clearBtn.disabled = false;
+  }
+}
+
+/**
+ * 실거래가 섹션(깡통전세 분석 포함)만 다시 렌더링.
+ * renderResult 전체를 다시 부르지 않고 이 부분만 업데이트.
+ */
+function renderPriceSection(r) {
+  const g = r.gangton || {};
+  const priceData = r._priceData;
+
+  // 깡통전세 뱃지 업데이트 (조건부)
+  const sourceBadge = document.getElementById('gangton-source-badge');
+  const isApi = !!(priceData && priceData._workerData);
+  if (sourceBadge) {
+    if (isApi || g.price_data_source === '실거래가 기반') {
+      sourceBadge.textContent = '🏛️ 국토부 실거래가 기반';
+      sourceBadge.style.color = '#1a7f44';
+    }
+  }
+
+  // 테이블 + 재조회 패널 부분만 재호출
+  // renderResult의 큰 블록을 복붙하는 대신, 전용 함수로 분리하려면 많이 리팩토링해야 하므로
+  // 여기선 가장 핵심인 table 부분만 innerHTML 교체
+  renderPriceTableAndRefinePanel(r);
+}
+
+function renderPriceTableAndRefinePanel(r) {
+  // renderResult 내부의 가격 테이블 렌더링 블록과 동일한 로직
+  // — 코드 중복을 피하려고 별도 함수로 뽑음
+  const priceData = r._priceData;
+  if (!(priceData && priceData._workerData)) return;
+
+  const wd = priceData._workerData;
+  const qi = wd.queryInfo || {};
+  const weekly = wd.weeklyAggregates || [];
+
+  const addressChip = qi.fullAddress
+    ? maskAddressDetail(qi.fullAddress)
+    : [qi.sido, qi.gu, qi.dong].filter(Boolean).join(' ');
+  const tolPct = Math.round((qi.areaTolerance ?? 0.10) * 100);
+  const filters = [];
+  if (qi.usedBuildingNameFilter) filters.push(`건물명 "${qi.buildingName}" 포함`);
+  if (qi.usedAreaFilter) filters.push(`면적 ${qi.area}㎡ ±${tolPct}%`);
+  const filterText = filters.length > 0 ? filters.join(' · ') : '없음 (시군구 전체)';
+
+  const queryPanel = `
+    <div style="background:#f0f5ff;border:1px solid #c5d8ff;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;line-height:1.7;color:#334">
+      <div style="font-weight:600;color:#2a5bd7;margin-bottom:4px">🔍 이렇게 조회했어요</div>
+      <div>📍 <strong>주소</strong>: ${addressChip || '(인식 실패)'}
+        ${qi.sigunguCode ? `<span style="color:#888;font-size:11px">(법정동코드 ${qi.sigunguCode})</span>` : ''}
+      </div>
+      <div>🏢 <strong>건물종류</strong>: ${qi.buildingType || '-'}</div>
+      <div>🔖 <strong>필터</strong>: ${filterText}</div>
+      <div style="color:#666;font-size:11px;margin-top:4px">
+        ※ 조회 기간: 최근 ${qi.periodMonths || 3}개월 · 전체 거래
+        <strong>${wd.totalCount}건</strong>
+        ${wd.usedFilter ? `(필터 적용 후 <strong>${wd.filteredCount}건</strong>)` : ''}
+      </div>
+    </div>`;
+
+  let tableHtml = '';
+  let totalOutliers = 0;
+  if (weekly.length > 0) {
+    let lastWeek = '';
+    let toggle = false;
+    const rowsHtml = [];
+    for (const w of weekly) {
+      if (w.weekKey !== lastWeek) { toggle = !toggle; lastWeek = w.weekKey; }
+      const bgStyle = toggle ? 'background:#fafbfc;' : '';
+      totalOutliers += (w.outlierCount || 0);
+
+      let priceDisplay = '-';
+      if (w.type === '매매' && w.avgPrice) {
+        priceDisplay = `<strong>${w.avgPrice.toLocaleString()}만원</strong>`;
+        if (w.minPrice !== w.maxPrice) {
+          priceDisplay += `<br><span style="font-size:10.5px;color:#888">${w.minPrice.toLocaleString()} ~ ${w.maxPrice.toLocaleString()}</span>`;
+        }
+      } else if (w.type === '전월세' && w.avgPrice) {
+        const rentSuffix = w.avgMonthlyRent > 0
+          ? ` + 월세 평균 ${w.avgMonthlyRent.toLocaleString()}만원`
+          : '';
+        priceDisplay = `<strong>${w.avgPrice.toLocaleString()}만원</strong>${rentSuffix ? '<br><span style="font-size:10.5px;color:#888">' + rentSuffix + '</span>' : ''}`;
+      }
+
+      let countDisplay = `${w.count}건`;
+      if (w.outlierCount > 0) {
+        countDisplay += `<br><span style="font-size:10px;color:#c0392b">🚫 ${w.outlierCount}건 제외</span>`;
+      }
+
+      rowsHtml.push(`
+        <tr style="${bgStyle}">
+          <td style="white-space:nowrap;font-weight:500">${w.weekLabel}</td>
+          <td>${w.type}</td>
+          <td>${priceDisplay}</td>
+          <td style="text-align:right">${countDisplay}</td>
+          <td>${w.avgArea ? w.avgArea + '㎡' : '-'}</td>
+        </tr>`);
+
+      if (w.clusters && w.clusters.length > 0) {
+        for (const c of w.clusters) {
+          const cBadge = c.label === '저가 그룹'
+            ? '<span style="background:#e6f7ec;color:#1a7f44;padding:1px 6px;border-radius:8px;font-size:10px">🟢 저가</span>'
+            : '<span style="background:#fff7e0;color:#996600;padding:1px 6px;border-radius:8px;font-size:10px">🟠 고가</span>';
+          rowsHtml.push(`
+            <tr style="${bgStyle};background:${toggle ? '#f5f7fa' : '#f8f9fb'}">
+              <td style="padding-left:24px;font-size:11px;color:#888">└ ${cBadge}</td>
+              <td style="font-size:11px;color:#666">${c.label}</td>
+              <td style="font-size:11.5px">
+                <strong>${c.avg.toLocaleString()}만원</strong>
+                <span style="font-size:10.5px;color:#888">(${c.min.toLocaleString()} ~ ${c.max.toLocaleString()})</span>
+              </td>
+              <td style="text-align:right;font-size:11px">${c.count}건</td>
+              <td style="font-size:11px">${c.avgArea ? c.avgArea + '㎡' : '-'}</td>
+            </tr>`);
+        }
+      }
+    }
+
+    const outlierNote = totalOutliers > 0
+      ? `<span style="color:#c0392b;font-size:11px">· 극단값 <strong>${totalOutliers}건 제외</strong> (IQR × 1.5 기준)</span>`
+      : '';
+
+    tableHtml = `
+      <div style="font-size:11.5px;color:#666;margin-bottom:6px;line-height:1.5">
+        📊 <strong>주차별 평균 가격</strong> (최신 주차부터 ↓) ${outlierNote}
+      </div>
+      <table class="price-table">
+        <thead>
+          <tr>
+            <th>조회일자 ↓</th>
+            <th>유형</th>
+            <th>평균가 (범위)</th>
+            <th style="text-align:right">건수</th>
+            <th>평균 면적</th>
+          </tr>
+        </thead>
+        <tbody>${rowsHtml.join('')}</tbody>
+      </table>`;
+  } else {
+    tableHtml = `<div style="padding:16px;text-align:center;color:#888;font-size:13px">조회된 실거래 내역이 없어요 (필터를 더 넓게 조정해보세요)</div>`;
+  }
+
+  const currentBN = qi.buildingName || '';
+  const currentArea = qi.area || '';
+  const currentTolPct = tolPct;
+
+  const refinePanel = `
+    <details style="margin-top:14px;border:1px solid #e5e5e5;border-radius:8px;padding:0;background:#fafafa" open>
+      <summary style="cursor:pointer;padding:10px 14px;font-size:12.5px;font-weight:600;color:#555;list-style:none;display:flex;justify-content:space-between;align-items:center">
+        <span>🎯 필터 세밀하게 조정 · 재조회</span>
+        <span style="font-size:11px;color:#888">▼</span>
+      </summary>
+      <div style="padding:12px 14px;border-top:1px solid #e5e5e5;background:#fff">
+        <div style="font-size:11px;color:#888;margin-bottom:10px;line-height:1.5">
+          서류에서 추출된 조건이 부정확하거나, 더 좁게/넓게 조회하고 싶을 때 사용하세요.
+          ${qi.originalBuildingName && qi.originalBuildingName !== currentBN
+            ? `<br>원본 건물명: <code>${qi.originalBuildingName}</code>`
+            : ''}
+          ${qi.originalArea && qi.originalArea !== (qi.area)
+            ? ` · 원본 면적: <code>${qi.originalArea}㎡</code>`
+            : ''}
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-bottom:12px">
+          <div>
+            <label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">
+              건물명 ${qi.buildingType === '단독다가구' ? '<span style="color:#c0392b">(단독/다가구는 적용 안 됨)</span>' : ''}
+            </label>
+            <input type="text" id="refine-building-name"
+              value="${currentBN.replace(/"/g, '&quot;')}"
+              placeholder="예: 래미안, 빈 칸이면 필터 해제"
+              style="width:100%;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit" />
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">전용면적 (㎡)</label>
+            <input type="number" id="refine-area" step="0.1"
+              value="${currentArea}"
+              placeholder="예: 84.5, 빈 칸이면 필터 해제"
+              style="width:100%;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit" />
+          </div>
+          <div style="grid-column:1 / -1">
+            <label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">
+              면적 허용 오차: <span id="refine-tolerance-label">±${currentTolPct}%</span>
+            </label>
+            <input type="range" id="refine-tolerance" min="5" max="30" step="5" value="${currentTolPct}"
+              style="width:100%" />
+            <div style="display:flex;justify-content:space-between;font-size:10px;color:#aaa;margin-top:2px">
+              <span>±5% (엄격)</span>
+              <span>±15%</span>
+              <span>±30% (넓게)</span>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+          <button type="button" id="refine-clear-btn"
+            style="padding:6px 14px;border:1px solid #ddd;background:#fff;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit">
+            필터 전부 해제
+          </button>
+          <button type="button" id="refine-search-btn"
+            style="padding:6px 14px;border:none;background:#4a7cf7;color:#fff;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">
+            🔄 재조회
+          </button>
+        </div>
+        <div id="refine-status" style="margin-top:8px;font-size:11.5px;color:#666;display:none"></div>
+      </div>
+    </details>`;
+
+  document.getElementById('price-detail-table').innerHTML = queryPanel + tableHtml + refinePanel;
+
+  // 이벤트 재바인딩
+  const tolSlider = document.getElementById('refine-tolerance');
+  const tolLabel = document.getElementById('refine-tolerance-label');
+  if (tolSlider && tolLabel) {
+    tolSlider.addEventListener('input', () => { tolLabel.textContent = `±${tolSlider.value}%`; });
+  }
+  const refineBtn = document.getElementById('refine-search-btn');
+  if (refineBtn) refineBtn.addEventListener('click', () => handleRefineSearch(r, false));
+  const clearBtn = document.getElementById('refine-clear-btn');
+  if (clearBtn) clearBtn.addEventListener('click', () => handleRefineSearch(r, true));
+}
+
 /* 결과 렌더링 */
 function renderResult(r) {
   const badgeMap = {
@@ -1944,9 +2348,10 @@ function renderResult(r) {
       const addressChip = qi.fullAddress
         ? maskAddressDetail(qi.fullAddress)
         : [qi.sido, qi.gu, qi.dong].filter(Boolean).join(' ');
+      const tolPct = Math.round((qi.areaTolerance ?? 0.10) * 100);
       const filters = [];
       if (qi.usedBuildingNameFilter) filters.push(`건물명 "${qi.buildingName}" 포함`);
-      if (qi.usedAreaFilter) filters.push(`면적 ${qi.area}㎡ ±20%`);
+      if (qi.usedAreaFilter) filters.push(`면적 ${qi.area}㎡ ±${tolPct}%`);
       const filterText = filters.length > 0 ? filters.join(' · ') : '없음 (시군구 전체)';
 
       const queryPanel = `
@@ -1971,20 +2376,24 @@ function renderResult(r) {
         </div>`;
 
       // ──────────────────────────────────────────────────────
-      // (B) 주차별 평균 테이블
+      // (B) 주차별 평균 테이블 (클러스터/이상치 표시 포함)
       // ──────────────────────────────────────────────────────
       let tableHtml = '';
+      let totalOutliers = 0;
       if (weekly.length > 0) {
-        // 주차가 바뀔 때마다 배경색 토글해서 구분 쉽게
         let lastWeek = '';
         let toggle = false;
-        const rows = weekly.map(w => {
+        const rowsHtml = [];
+
+        for (const w of weekly) {
           if (w.weekKey !== lastWeek) {
             toggle = !toggle;
             lastWeek = w.weekKey;
           }
           const bgStyle = toggle ? 'background:#fafbfc;' : '';
-          // 가격 표시
+          totalOutliers += (w.outlierCount || 0);
+
+          // 가격 표시 (이상치 제거 후)
           let priceDisplay = '-';
           if (w.type === '매매' && w.avgPrice) {
             priceDisplay = `<strong>${w.avgPrice.toLocaleString()}만원</strong>`;
@@ -1997,19 +2406,50 @@ function renderResult(r) {
               : '';
             priceDisplay = `<strong>${w.avgPrice.toLocaleString()}만원</strong>${rentSuffix ? '<br><span style="font-size:10.5px;color:#888">' + rentSuffix + '</span>' : ''}`;
           }
-          return `
+
+          // 건수 표시 (이상치 있으면 alert)
+          let countDisplay = `${w.count}건`;
+          if (w.outlierCount > 0) {
+            countDisplay += `<br><span style="font-size:10px;color:#c0392b" title="IQR 기준 극단값 ${w.outlierCount}건 제외">🚫 ${w.outlierCount}건 제외</span>`;
+          }
+
+          rowsHtml.push(`
             <tr style="${bgStyle}">
               <td style="white-space:nowrap;font-weight:500">${w.weekLabel}</td>
               <td>${w.type}</td>
               <td>${priceDisplay}</td>
-              <td style="text-align:right">${w.count}건</td>
+              <td style="text-align:right">${countDisplay}</td>
               <td>${w.avgArea ? w.avgArea + '㎡' : '-'}</td>
-            </tr>`;
-        }).join('');
+            </tr>`);
+
+          // 클러스터가 감지됐으면 서브 로우로 표시
+          if (w.clusters && w.clusters.length > 0) {
+            for (const c of w.clusters) {
+              const cBadge = c.label === '저가 그룹'
+                ? '<span style="background:#e6f7ec;color:#1a7f44;padding:1px 6px;border-radius:8px;font-size:10px">🟢 저가</span>'
+                : '<span style="background:#fff7e0;color:#996600;padding:1px 6px;border-radius:8px;font-size:10px">🟠 고가</span>';
+              rowsHtml.push(`
+                <tr style="${bgStyle};background:${toggle ? '#f5f7fa' : '#f8f9fb'}">
+                  <td style="padding-left:24px;font-size:11px;color:#888" colspan="1">└ ${cBadge}</td>
+                  <td style="font-size:11px;color:#666">${c.label}</td>
+                  <td style="font-size:11.5px">
+                    <strong>${c.avg.toLocaleString()}만원</strong>
+                    <span style="font-size:10.5px;color:#888">(${c.min.toLocaleString()} ~ ${c.max.toLocaleString()})</span>
+                  </td>
+                  <td style="text-align:right;font-size:11px">${c.count}건</td>
+                  <td style="font-size:11px">${c.avgArea ? c.avgArea + '㎡' : '-'}</td>
+                </tr>`);
+            }
+          }
+        }
+
+        const outlierNote = totalOutliers > 0
+          ? `<span style="color:#c0392b;font-size:11px">· 극단값 <strong>${totalOutliers}건 제외</strong> (IQR × 1.5 기준)</span>`
+          : '';
 
         tableHtml = `
           <div style="font-size:11.5px;color:#666;margin-bottom:6px;line-height:1.5">
-            📊 <strong>주차별 평균 가격</strong> (최신 주차부터 ↓)
+            📊 <strong>주차별 평균 가격</strong> (최신 주차부터 ↓) ${outlierNote}
           </div>
           <table class="price-table">
             <thead>
@@ -2021,14 +2461,96 @@ function renderResult(r) {
                 <th>평균 면적</th>
               </tr>
             </thead>
-            <tbody>${rows}</tbody>
+            <tbody>${rowsHtml.join('')}</tbody>
           </table>`;
       } else {
         tableHtml = `<div style="padding:16px;text-align:center;color:#888;font-size:13px">조회된 실거래 내역이 없어요 (해당 기간 이 지역/유형 거래 없음)</div>`;
       }
 
-      document.getElementById('price-detail-table').innerHTML = queryPanel + tableHtml;
+      // ──────────────────────────────────────────────────────
+      // (C) 재조회 패널 — 필터 조건을 사용자가 미세 조정
+      // ──────────────────────────────────────────────────────
+      const currentBN = qi.buildingName || '';
+      const currentArea = qi.area || '';
+      const currentTolPct = tolPct;
+
+      const refinePanel = `
+        <details style="margin-top:14px;border:1px solid #e5e5e5;border-radius:8px;padding:0;background:#fafafa">
+          <summary style="cursor:pointer;padding:10px 14px;font-size:12.5px;font-weight:600;color:#555;list-style:none;display:flex;justify-content:space-between;align-items:center">
+            <span>🎯 필터 세밀하게 조정 · 재조회</span>
+            <span style="font-size:11px;color:#888">▼</span>
+          </summary>
+          <div style="padding:12px 14px;border-top:1px solid #e5e5e5;background:#fff">
+            <div style="font-size:11px;color:#888;margin-bottom:10px;line-height:1.5">
+              서류에서 추출된 조건이 부정확하거나, 더 좁게/넓게 조회하고 싶을 때 사용하세요.
+              ${qi.originalBuildingName && qi.originalBuildingName !== currentBN
+                ? `<br>원본 건물명: <code>${qi.originalBuildingName}</code>`
+                : ''}
+              ${qi.originalArea && qi.originalArea !== (qi.area)
+                ? ` · 원본 면적: <code>${qi.originalArea}㎡</code>`
+                : ''}
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 14px;margin-bottom:12px">
+              <div>
+                <label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">
+                  건물명 ${qi.buildingType === '단독다가구' ? '<span style="color:#c0392b">(단독/다가구는 적용 안 됨)</span>' : ''}
+                </label>
+                <input type="text" id="refine-building-name"
+                  value="${currentBN.replace(/"/g, '&quot;')}"
+                  placeholder="예: 래미안, 빈 칸이면 필터 해제"
+                  style="width:100%;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit" />
+              </div>
+              <div>
+                <label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">전용면적 (㎡)</label>
+                <input type="number" id="refine-area" step="0.1"
+                  value="${currentArea}"
+                  placeholder="예: 84.5, 빈 칸이면 필터 해제"
+                  style="width:100%;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:12px;font-family:inherit" />
+              </div>
+              <div style="grid-column:1 / -1">
+                <label style="display:block;font-size:11px;font-weight:600;color:#555;margin-bottom:4px">
+                  면적 허용 오차: <span id="refine-tolerance-label">±${currentTolPct}%</span>
+                </label>
+                <input type="range" id="refine-tolerance" min="5" max="30" step="5" value="${currentTolPct}"
+                  style="width:100%" />
+                <div style="display:flex;justify-content:space-between;font-size:10px;color:#aaa;margin-top:2px">
+                  <span>±5% (엄격)</span>
+                  <span>±15%</span>
+                  <span>±30% (넓게)</span>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;gap:8px;justify-content:flex-end">
+              <button type="button" id="refine-clear-btn"
+                style="padding:6px 14px;border:1px solid #ddd;background:#fff;border-radius:6px;font-size:12px;cursor:pointer;font-family:inherit">
+                필터 전부 해제
+              </button>
+              <button type="button" id="refine-search-btn"
+                style="padding:6px 14px;border:none;background:#4a7cf7;color:#fff;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">
+                🔄 재조회
+              </button>
+            </div>
+            <div id="refine-status" style="margin-top:8px;font-size:11.5px;color:#666;display:none"></div>
+          </div>
+        </details>`;
+
+      document.getElementById('price-detail-table').innerHTML = queryPanel + tableHtml + refinePanel;
       document.getElementById('price-detail-section').style.display = 'block';
+
+      // ── 재조회 패널 이벤트 바인딩
+      const tolSlider = document.getElementById('refine-tolerance');
+      const tolLabel = document.getElementById('refine-tolerance-label');
+      if (tolSlider && tolLabel) {
+        tolSlider.addEventListener('input', () => { tolLabel.textContent = `±${tolSlider.value}%`; });
+      }
+      const refineBtn = document.getElementById('refine-search-btn');
+      if (refineBtn) {
+        refineBtn.addEventListener('click', () => handleRefineSearch(r, false));
+      }
+      const clearBtn = document.getElementById('refine-clear-btn');
+      if (clearBtn) {
+        clearBtn.addEventListener('click', () => handleRefineSearch(r, true));
+      }
     }
   }
 
