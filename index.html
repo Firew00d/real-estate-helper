@@ -1221,7 +1221,7 @@ async function fetchMolitPrice(info, buildingType, tradeType) {
     sigunguCode: code,
     buildingType,
     tradeType,
-    months: '6',
+    months: '3',            // 최근 3개월 데이터로 주차별 집계
   });
   // 단독/다가구는 건물명 필드 자체가 없으므로 전달하지 않음
   if (info.building_name && buildingType !== '단독다가구') {
@@ -1257,45 +1257,58 @@ async function searchRealPrice(apiKey, info, buildingType) {
           ...(rent?.transactions || []),
         ];
 
-        // 월·유형별로 그룹핑
-        const txByMonth = {};
+        // ──────────────────────────────────────────────────────
+        // 주차별 평균 집계 (각 주·거래유형별 평균 가격)
+        // ──────────────────────────────────────────────────────
+        const weeklyBuckets = {};  // key: "2026-W14_매매" → { txs: [], week, year, weekNum, type }
         for (const t of allTx) {
-          const key = `${t.date}_${t.type}`;  // 예: "2026-03_매매"
-          if (!txByMonth[key]) txByMonth[key] = [];
-          txByMonth[key].push(t);
+          const weekKey = getIsoWeekKey(t);      // "2026-W14" 형식
+          if (!weekKey) continue;
+          const bucketKey = `${weekKey}_${t.type}`;
+          if (!weeklyBuckets[bucketKey]) {
+            weeklyBuckets[bucketKey] = {
+              weekKey, type: t.type, txs: [],
+            };
+          }
+          weeklyBuckets[bucketKey].txs.push(t);
         }
 
-        // 결정적 샘플링: 각 월·유형 그룹에서 가격 중간값 기준 3건
-        // (가격 오름차순 정렬 후 하/중/상 = min, median, max 에 가까운 3건)
-        // → 매번 같은 입력엔 같은 결과 + 가격 분포도 보여줌
-        const sampled = [];
-        for (const key of Object.keys(txByMonth).sort().reverse()) {
-          const group = txByMonth[key];
-          // 금액 기준 정렬 (매매는 price, 전월세는 deposit)
-          const priced = group
-            .filter(t => (t.price || t.deposit))
-            .sort((a, b) => (a.price || a.deposit || 0) - (b.price || b.deposit || 0));
-          if (priced.length === 0) continue;
-          if (priced.length <= 3) {
-            sampled.push(...priced);
-          } else {
-            const lo = priced[0];
-            const mid = priced[Math.floor(priced.length / 2)];
-            const hi = priced[priced.length - 1];
-            sampled.push(lo, mid, hi);
-          }
-        }
+        // 각 버킷에서 평균 계산 후 배열로
+        const weeklyAggregates = Object.values(weeklyBuckets)
+          .map(b => aggregateWeek(b))
+          .filter(Boolean)
+          // 최신 주차가 맨 위 (문자열 비교로 충분: "2026-W14" > "2026-W13")
+          .sort((a, b) => b.weekKey.localeCompare(a.weekKey));
+
+        // ──────────────────────────────────────────────────────
+        // 조회에 사용된 메타 정보 (UI에 표시할 내용)
+        // ──────────────────────────────────────────────────────
+        const sigunguCode = findSigunguCode(info.si, info.gu);
+        const queryInfo = {
+          sido: info.si || '',
+          gu: info.gu || '',
+          dong: info.dong || '',
+          fullAddress: info.address || '',
+          sigunguCode,
+          buildingType: type,
+          buildingName: info.building_name || '',
+          area: info.area || null,
+          usedBuildingNameFilter: !!(info.building_name && type !== '단독다가구'),
+          usedAreaFilter: !!info.area,
+          periodMonths: 3,
+        };
 
         const combined = {
           ok: true,
           avg_sale_price: sale?.avg_sale_price || null,
           avg_deposit: rent?.avg_deposit || null,
           avg_lease_deposit: rent?.avg_lease_deposit || null,
-          transactions: sampled.slice(0, 30),
+          weeklyAggregates,
           totalCount: (sale?.totalCount || 0) + (rent?.totalCount || 0),
           filteredCount: (sale?.filteredCount || 0) + (rent?.filteredCount || 0),
           usedFilter: sale?.usedFilter || rent?.usedFilter || false,
           months: sale?.months || rent?.months || [],
+          queryInfo,
         };
         return normalizeWorkerToPriceData(combined, type);
       }
@@ -1309,6 +1322,96 @@ async function searchRealPrice(apiKey, info, buildingType) {
 
   // 2) 폴백: Claude 웹서치 (기존 로직)
   return await searchRealPriceViaWebSearch(apiKey, info, type);
+}
+
+/**
+ * 거래 객체에서 ISO 8601 주차 키 생성 ("YYYY-Www" 형식).
+ * Worker 응답의 day 필드를 사용해 실제 계약일로 주차 계산.
+ * day가 없는 옛 응답은 월 중간(15일)로 대체 (월 단위 그룹핑으로 fallback).
+ */
+function getIsoWeekKey(tx) {
+  // 우선 year/month/day 필드 사용 (신규 응답)
+  let y = tx.year, m = tx.month, day = tx.day;
+
+  // 구 응답 호환: date가 "YYYY-MM-DD" 형태면 파싱
+  if ((!y || !m) && tx.date) {
+    const parts = tx.date.split('-').map(Number);
+    y = parts[0]; m = parts[1]; day = parts[2] || day;
+  }
+  if (!y || !m) return null;
+  if (!day) day = 15;  // day 없으면 월 중간일로 (주차가 월 단위로 퉁쳐짐)
+
+  // ISO week 계산
+  const d = new Date(Date.UTC(y, m - 1, day));
+  const target = new Date(d.getTime());
+  const dayOfWeek = (target.getUTCDay() + 6) % 7;
+  target.setUTCDate(target.getUTCDate() - dayOfWeek + 3);
+  const firstThursday = new Date(Date.UTC(target.getUTCFullYear(), 0, 4));
+  const week = 1 + Math.round(
+    ((target.getTime() - firstThursday.getTime()) / 86400000 - 3 + ((firstThursday.getUTCDay() + 6) % 7)) / 7
+  );
+  return `${target.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
+}
+
+/**
+ * 한 주차·거래유형 버킷을 평균 등 통계로 압축
+ */
+function aggregateWeek(bucket) {
+  const { weekKey, type, txs } = bucket;
+  if (!txs || txs.length === 0) return null;
+
+  // 가격 필드 (매매는 price, 전월세는 deposit)
+  const priceField = type === '매매' ? 'price' : 'deposit';
+  const prices = txs.map(t => t[priceField]).filter(n => n && n > 0);
+  if (prices.length === 0) return null;
+
+  const avg = Math.round(prices.reduce((a, b) => a + b, 0) / prices.length);
+  const sortedPrices = [...prices].sort((a, b) => a - b);
+  const median = sortedPrices.length % 2
+    ? sortedPrices[(sortedPrices.length - 1) / 2]
+    : Math.round((sortedPrices[sortedPrices.length/2 - 1] + sortedPrices[sortedPrices.length/2]) / 2);
+
+  // 면적·월세 평균도 같이
+  const areas = txs.map(t => t.area).filter(n => n && n > 0);
+  const avgArea = areas.length
+    ? Math.round(areas.reduce((a, b) => a + b, 0) / areas.length * 10) / 10
+    : null;
+  const rents = type === '전월세'
+    ? txs.map(t => t.monthlyRent).filter(n => n && n > 0)
+    : [];
+  const avgMonthlyRent = rents.length
+    ? Math.round(rents.reduce((a, b) => a + b, 0) / rents.length)
+    : null;
+
+  // 주차를 "YYYY-MM-DD ~ DD" 보기 좋게 표시
+  const label = formatWeekRange(weekKey);
+
+  return {
+    weekKey,
+    weekLabel: label,
+    type,
+    count: txs.length,
+    avgPrice: avg,
+    medianPrice: median,
+    minPrice: sortedPrices[0],
+    maxPrice: sortedPrices[sortedPrices.length - 1],
+    avgArea,
+    avgMonthlyRent,
+  };
+}
+
+/** "2026-W14" → "2026.04.01 주간" 같은 사람이 읽기 좋은 라벨 */
+function formatWeekRange(weekKey) {
+  const m = weekKey.match(/^(\d{4})-W(\d+)$/);
+  if (!m) return weekKey;
+  const year = +m[1], week = +m[2];
+  // ISO 주차의 월요일 계산
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const jan4Day = (jan4.getUTCDay() + 6) % 7;
+  const weekMonday = new Date(jan4.getTime() + ((week - 1) * 7 - jan4Day) * 86400000);
+  const mm = String(weekMonday.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(weekMonday.getUTCDate()).padStart(2, '0');
+  return `${year}.${mm}.${dd} 주`;
 }
 
 /** 기존 Claude 웹서치 기반 조회 (폴백) */
@@ -1617,13 +1720,24 @@ async function analyze() {
       priceData = await searchRealPrice(apiKey, docInfo, buildingType);
       const resultBox = document.getElementById('price-result-box');
       const isApi = !!(priceData && priceData._workerData);
-      if (priceData && priceData.search_success && priceData.recent_transactions?.length > 0) {
-        const txList = priceData.recent_transactions.slice(0, 3)
-          .map(t => `${t.date} ${t.type} ${t.price?.toLocaleString()}만원`).join(' · ');
+      const qi = priceData?._workerData?.queryInfo;
+      const addrChip = qi
+        ? `<span style="display:inline-block;background:#fff;border:1px solid #c5d8ff;border-radius:10px;padding:1px 8px;font-size:11px;margin-left:4px">📍 ${[qi.sido, qi.gu, qi.dong].filter(Boolean).join(' ')}${qi.buildingName ? ' · ' + qi.buildingName : ''}</span>`
+        : '';
+
+      if (priceData && priceData.search_success && priceData._workerData?.weeklyAggregates?.length > 0) {
+        const wa = priceData._workerData.weeklyAggregates.slice(0, 2);
+        const summary = wa
+          .map(w => `${w.weekLabel} ${w.type} 평균 ${w.avgPrice?.toLocaleString()}만원 (${w.count}건)`)
+          .join(' · ');
         const source = isApi
-          ? `🏛️ <strong>국토부 공공 API 조회 성공</strong> — ${priceData.search_note}`
+          ? `🏛️ <strong>국토부 공공 API 조회 성공</strong>${addrChip}<br><span style="color:#666;font-size:11px">${priceData.search_note}</span>`
           : `🔍 웹서치 기반 조회 완료`;
-        resultBox.innerHTML = `${source}<br><span style="color:#555;font-size:12px">${txList}</span>`;
+        resultBox.innerHTML = `${source}<br><span style="color:#555;font-size:12px;margin-top:4px;display:inline-block">${summary}</span>`;
+        resultBox.classList.add('show');
+      } else if (priceData && priceData.search_success) {
+        // 응답은 왔지만 거래 0건
+        resultBox.innerHTML = `⚠️ 조회 완료 ${addrChip} — 최근 3개월 거래 기록이 없어요`;
         resultBox.classList.add('show');
       } else {
         resultBox.innerHTML = `⚠️ 실거래가 조회 실패 — AI 추정값으로 분석 진행`;
@@ -1802,67 +1916,101 @@ function renderResult(r) {
     document.getElementById('gangton-body').innerHTML = html;
     document.getElementById('gangton-section').style.display = 'block';
 
-    if (priceData && priceData.recent_transactions && priceData.recent_transactions.length > 0) {
-      const txs = priceData.recent_transactions;
+    if (priceData && priceData._workerData) {
       const wd = priceData._workerData;
+      const qi = wd.queryInfo || {};
+      const weekly = wd.weeklyAggregates || [];
 
-      // 거래 내역 통계
-      const monthsSet = new Set(txs.map(t => t.date).filter(Boolean));
-      const monthsList = [...monthsSet].sort().reverse();
-      const periodText = monthsList.length > 0
-        ? `${monthsList[monthsList.length-1]} ~ ${monthsList[0]}`
-        : '최근';
+      // ──────────────────────────────────────────────────────
+      // (A) 조회 정보 패널 — 어떤 주소/필터로 검색했는지 표시
+      // ──────────────────────────────────────────────────────
+      const addressChip = qi.fullAddress
+        ? qi.fullAddress
+        : [qi.sido, qi.gu, qi.dong].filter(Boolean).join(' ');
+      const filters = [];
+      if (qi.usedBuildingNameFilter) filters.push(`건물명 "${qi.buildingName}" 포함`);
+      if (qi.usedAreaFilter) filters.push(`면적 ${qi.area}㎡ ±20%`);
+      const filterText = filters.length > 0 ? filters.join(' · ') : '없음 (시군구 전체)';
 
-      // 월이 바뀌는 지점에 구분선 주기 위해 이전 date 기억
-      let prevDate = '';
-      const rows = txs.map(t => {
-        const isMonthChange = t.date !== prevDate;
-        prevDate = t.date;
-        const rowStyle = isMonthChange ? 'border-top:2px solid #e0e0e0;' : '';
-        // 가격: 매매는 price, 전월세는 deposit + monthlyRent 조합
-        let priceDisplay = '-';
-        if (t.type === '매매' && t.price) {
-          priceDisplay = `<strong>${t.price.toLocaleString()}만원</strong>`;
-        } else if (t.type === '전월세') {
-          const dep = t._monthlyRent !== undefined ? t.price : t.price; // recent_transactions 포맷 호환
-          if (t._monthlyRent && t._monthlyRent > 0) {
-            priceDisplay = `<strong>보증금 ${t.price?.toLocaleString() || '-'}만원</strong><br><span style="font-size:11px;color:#888">월세 ${t._monthlyRent.toLocaleString()}만원</span>`;
-          } else if (t.price) {
-            priceDisplay = `<strong>전세 ${t.price.toLocaleString()}만원</strong>`;
-          }
-        }
-        return `
-          <tr style="${rowStyle}">
-            <td style="white-space:nowrap">${t.date || '-'}</td>
-            <td>${t.type || '-'}</td>
-            <td>${priceDisplay}</td>
-            <td>${t.area ? t.area.toFixed(1) + '㎡' : '-'}</td>
-            <td>${t.floor || '-'}</td>
-          </tr>`;
-      }).join('');
-
-      const summaryHtml = `
-        <div style="font-size:11.5px;color:#666;margin-bottom:8px;line-height:1.5">
-          📅 조회 기간: <strong>${periodText}</strong>
-          ${wd ? ` · 전체 조회 건수 <strong>${wd.totalCount}건</strong>` : ''}
-          ${wd?.usedFilter ? ` · 건물/면적 필터링 후 <strong>${wd.filteredCount}건</strong>` : ''}
-          <br>
-          💡 각 월·거래유형별로 <strong>최저가·중간가·최고가</strong> 대표 3건씩 샘플링 (최신월부터 ↓)
+      const queryPanel = `
+        <div style="background:#f0f5ff;border:1px solid #c5d8ff;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;line-height:1.7;color:#334">
+          <div style="font-weight:600;color:#2a5bd7;margin-bottom:4px">🔍 이렇게 조회했어요</div>
+          <div>📍 <strong>주소</strong>: ${addressChip || '(인식 실패)'}
+            ${qi.sigunguCode ? `<span style="color:#888;font-size:11px">(법정동코드 ${qi.sigunguCode})</span>` : ''}
+          </div>
+          <div>🏢 <strong>건물종류</strong>: ${qi.buildingType || '-'}</div>
+          <div>🔖 <strong>필터</strong>: ${filterText}</div>
+          <div style="color:#666;font-size:11px;margin-top:4px">
+            ※ 조회 기간: 최근 ${qi.periodMonths || 3}개월 · 전체 거래
+            <strong>${wd.totalCount}건</strong>
+            ${wd.usedFilter ? `(필터 적용 후 <strong>${wd.filteredCount}건</strong>)` : ''}
+          </div>
+          ${!qi.usedBuildingNameFilter && qi.buildingName
+            ? `<div style="color:#c0392b;font-size:11px;margin-top:4px">⚠️ 건물명 "${qi.buildingName}"는 인식됐지만 단독/다가구 유형이라 필터에 사용되지 않았어요.</div>`
+            : ''}
+          ${!qi.fullAddress && !addressChip
+            ? `<div style="color:#c0392b;font-size:11px;margin-top:4px">⚠️ 주소 인식에 실패했어요. 결과 신뢰도가 낮을 수 있습니다.</div>`
+            : ''}
         </div>`;
 
-      document.getElementById('price-detail-table').innerHTML = summaryHtml + `
-        <table class="price-table">
-          <thead>
-            <tr>
-              <th>거래일 ↓</th>
-              <th>유형</th>
-              <th>가격</th>
-              <th>면적</th>
-              <th>층</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>`;
+      // ──────────────────────────────────────────────────────
+      // (B) 주차별 평균 테이블
+      // ──────────────────────────────────────────────────────
+      let tableHtml = '';
+      if (weekly.length > 0) {
+        // 주차가 바뀔 때마다 배경색 토글해서 구분 쉽게
+        let lastWeek = '';
+        let toggle = false;
+        const rows = weekly.map(w => {
+          if (w.weekKey !== lastWeek) {
+            toggle = !toggle;
+            lastWeek = w.weekKey;
+          }
+          const bgStyle = toggle ? 'background:#fafbfc;' : '';
+          // 가격 표시
+          let priceDisplay = '-';
+          if (w.type === '매매' && w.avgPrice) {
+            priceDisplay = `<strong>${w.avgPrice.toLocaleString()}만원</strong>`;
+            if (w.minPrice !== w.maxPrice) {
+              priceDisplay += `<br><span style="font-size:10.5px;color:#888">${w.minPrice.toLocaleString()} ~ ${w.maxPrice.toLocaleString()}</span>`;
+            }
+          } else if (w.type === '전월세' && w.avgPrice) {
+            const rentSuffix = w.avgMonthlyRent && w.avgMonthlyRent > 0
+              ? ` + 월세 평균 ${w.avgMonthlyRent.toLocaleString()}만원`
+              : '';
+            priceDisplay = `<strong>${w.avgPrice.toLocaleString()}만원</strong>${rentSuffix ? '<br><span style="font-size:10.5px;color:#888">' + rentSuffix + '</span>' : ''}`;
+          }
+          return `
+            <tr style="${bgStyle}">
+              <td style="white-space:nowrap;font-weight:500">${w.weekLabel}</td>
+              <td>${w.type}</td>
+              <td>${priceDisplay}</td>
+              <td style="text-align:right">${w.count}건</td>
+              <td>${w.avgArea ? w.avgArea + '㎡' : '-'}</td>
+            </tr>`;
+        }).join('');
+
+        tableHtml = `
+          <div style="font-size:11.5px;color:#666;margin-bottom:6px;line-height:1.5">
+            📊 <strong>주차별 평균 가격</strong> (최신 주차부터 ↓)
+          </div>
+          <table class="price-table">
+            <thead>
+              <tr>
+                <th>주차 ↓</th>
+                <th>유형</th>
+                <th>평균가 (범위)</th>
+                <th style="text-align:right">건수</th>
+                <th>평균 면적</th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>`;
+      } else {
+        tableHtml = `<div style="padding:16px;text-align:center;color:#888;font-size:13px">조회된 실거래 내역이 없어요 (해당 기간 이 지역/유형 거래 없음)</div>`;
+      }
+
+      document.getElementById('price-detail-table').innerHTML = queryPanel + tableHtml;
       document.getElementById('price-detail-section').style.display = 'block';
     }
   }
