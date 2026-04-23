@@ -2043,73 +2043,422 @@ function previewMissingClauses() {
   alert('📌 다음 특약이 자동 추가됩니다:\n\n' + preview);
 }
 
-/* 계약서 생성 */
-async function fillTemplateWithAI(apiKey, docInfo, missingClauses) {
-  const zip = await JSZip.loadAsync(templateBuffer);
-  const documentXml = await zip.file('word/document.xml').async('string');
-  const mergedData = { ...docInfo, ...missingData };
-  const clauseTextList = missingClauses.map(c => `【${c.title}】\n${c.content}`).join('\n\n');
+/* 계약서 생성 — 순수 JS로 표준 부동산 임대차 계약서 생성 (AI 호출 없음)
+ * contractsample.docx 템플릿을 기반으로 하되, XML을 직접 조립해서
+ * docInfo 값을 곧바로 삽입. 504 타임아웃 완전 회피. */
+async function generateContractDocx(docInfo, missingClauses, contractType) {
+  // 데이터 병합 (사용자가 수동 보완한 missingData도 반영)
+  const data = { ...docInfo, ...missingData };
 
-  const prompt = `당신은 Word .docx 파일의 내부 document.xml을 직접 수정하는 전문가입니다.
+  // ── 헬퍼: 값이 비었으면 빈 문자열, 있으면 XML-safe로 리턴
+  const v = (key, fallback = '') => {
+    const val = data[key];
+    if (val === null || val === undefined || val === '') return escapeXml(fallback);
+    return escapeXml(String(val));
+  };
+  // ── 숫자 금액을 "금 1억5천만원정 (₩150,000,000)" 형식으로
+  const formatMoney = (manwon) => {
+    if (!manwon) return '';
+    const n = Number(manwon);
+    if (isNaN(n) || n === 0) return '';
+    const won = n * 10000;
+    return `금 ${koreanAmount(n)}정         (₩${won.toLocaleString()})`;
+  };
+  // ── 날짜 "2026-04-23" → "2026년 04월 23일"
+  const formatDate = (iso) => {
+    if (!iso) return '';
+    const m = String(iso).match(/(\d{4})[-./](\d{1,2})[-./](\d{1,2})/);
+    if (!m) return escapeXml(String(iso));
+    return `${m[1]}년 ${m[2].padStart(2,'0')}월 ${m[3].padStart(2,'0')}일`;
+  };
 
-[원본 document.xml]
-${documentXml}
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}년 ${String(today.getMonth()+1).padStart(2,'0')}월 ${String(today.getDate()).padStart(2,'0')}일`;
 
-[채워 넣을 데이터 - JSON]
-${JSON.stringify(mergedData, null, 2)}
+  // ── 특약사항 텍스트 합성: 기존 특약 + 자동 보완 특약
+  const existingClauses = Array.isArray(data.existing_special_clauses) ? data.existing_special_clauses : [];
+  const clauseItems = [
+    ...existingClauses.map(x => String(x).trim()).filter(Boolean),
+    ...(missingClauses || []).map(c => `[${c.title}]\n${String(c.content || '').trim()}`),
+  ];
 
-[계약 유형] ${selectedContractType}
+  // ── 보증금/차임 라인 구성
+  const depositLine = data.lease_price ? formatMoney(data.lease_price) : '';
+  const downPaymentLine = data.down_payment
+    ? `${formatMoney(data.down_payment)}은 계약시에 지급하고 영수함.`
+    : '금                       정         은 계약시에 지급하고 영수함.';
+  const balanceLine = data.balance_payment
+    ? `${formatMoney(data.balance_payment)}은 ${formatDate(data.balance_payment_date) || '      년      월      일'}에 지급한다.`
+    : `금                       정         은       년      월      일에 지급한다.`;
+  const monthlyLine = data.monthly_rent
+    ? `${formatMoney(data.monthly_rent)}은 매월 ${data.monthly_rent_day || ''}일에 지급한다.`
+    : `금                       정         은 매월     일에 지급한다.`;
 
-[추가해야 할 누락 특약]
-${clauseTextList || '(없음)'}
+  const startLine = data.contract_start
+    ? formatDate(data.contract_start)
+    : '     년      월      일';
+  const endLine = data.contract_end
+    ? formatDate(data.contract_end)
+    : '     년      월      일';
 
-작업 지시:
-1. document.xml 내부의 빈칸을 JSON 데이터의 적절한 값으로 채우세요.
-2. 특약사항 섹션이 있으면 그 부분의 <w:p> 요소들 사이에 누락 특약을 같은 스타일로 추가하세요.
-3. 데이터에 값이 없는 항목은 원본 빈칸 그대로 유지
-4. XML 구조는 절대 망가뜨리지 말 것
-5. 응답은 **수정된 전체 document.xml 하나만** 출력. 설명/주석/코드블록 펜스 없이.`;
+  // ── 특약 XML
+  const clauseXml = clauseItems.length === 0
+    ? `<w:p><w:r><w:t xml:space="preserve">1. </w:t></w:r></w:p><w:p><w:r><w:t xml:space="preserve">2. </w:t></w:r></w:p>`
+    : clauseItems.map((c, i) => {
+        const lines = c.split('\n').filter(line => line.trim());
+        return lines.map((line, j) => {
+          const prefix = j === 0 ? `${i + 1}. ` : '   ';
+          return `<w:p><w:r><w:t xml:space="preserve">${escapeXml(prefix + line)}</w:t></w:r></w:p>`;
+        }).join('');
+      }).join('');
 
-  const resp = await callAPI(apiKey, [{ role: 'user', content: prompt }], null, 16000);
-  let modifiedXml = extractText(resp.content).trim();
-  modifiedXml = modifiedXml.replace(/^```xml\s*/i, '').replace(/^```\s*/, '').replace(/```\s*$/, '').trim();
-  if (!modifiedXml.startsWith('<?xml') && !modifiedXml.startsWith('<w:document')) {
-    if (documentXml.startsWith('<?xml')) {
-      const declEnd = documentXml.indexOf('?>') + 2;
-      const decl = documentXml.substring(0, declEnd);
-      if (!modifiedXml.startsWith('<?xml')) modifiedXml = decl + '\n' + modifiedXml;
-    }
-  }
-  zip.file('word/document.xml', modifiedXml);
+  // ─────────────────────────────────────────────────────
+  // document.xml 전체 조립
+  // ─────────────────────────────────────────────────────
+  const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+
+    <!-- 제목 -->
+    <w:p>
+      <w:pPr><w:jc w:val="center"/><w:spacing w:after="240"/></w:pPr>
+      <w:r><w:rPr><w:b/><w:sz w:val="40"/></w:rPr><w:t>부동산 ${escapeXml(contractType || '임대차')} 계약서</w:t></w:r>
+    </w:p>
+
+    <w:p>
+      <w:pPr><w:spacing w:after="200"/></w:pPr>
+      <w:r><w:t xml:space="preserve">임차인과 임대인 쌍방은 아래 표시 부동산에 관하여 다음 내용과 같이 ${escapeXml(contractType || '임대차')}계약을 체결한다.</w:t></w:r>
+    </w:p>
+
+    <!-- 1. 부동산의 표시 -->
+    <w:p>
+      <w:pPr><w:spacing w:before="240" w:after="120"/></w:pPr>
+      <w:r><w:rPr><w:b/><w:sz w:val="28"/></w:rPr><w:t>1. 부동산의 표시</w:t></w:r>
+    </w:p>
+    ${buildKvTable([
+      ['소 재 지', v('address')],
+      ['건물명', v('building_name')],
+      ['건물종류', v('building_type')],
+      ['전용면적', data.area ? `${escapeXml(String(data.area))} ㎡` : ''],
+      ['층', v('floor')],
+    ])}
+
+    <!-- 2. 계약 내용 -->
+    <w:p>
+      <w:pPr><w:spacing w:before="320" w:after="120"/></w:pPr>
+      <w:r><w:rPr><w:b/><w:sz w:val="28"/></w:rPr><w:t>2. 계약 내용</w:t></w:r>
+    </w:p>
+
+    <w:p>
+      <w:pPr><w:spacing w:after="120"/></w:pPr>
+      <w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">제1조 [목적] </w:t></w:r>
+      <w:r><w:t xml:space="preserve">위 부동산의 ${escapeXml(contractType || '임대차')}에 한하여 임대인과 임차인은 합의에 의하여 임차보증금 및 차임을 다음과 같이 지불하기로 한다.</w:t></w:r>
+    </w:p>
+
+    ${buildKvTable([
+      ['보 증 금', escapeXml(depositLine || '금                       정         (₩               )')],
+      ['계 약 금', escapeXml(downPaymentLine)],
+      ['잔    금', escapeXml(balanceLine)],
+      ['차임(월세)', escapeXml(monthlyLine)],
+    ])}
+
+    <w:p>
+      <w:pPr><w:spacing w:before="200" w:after="120"/></w:pPr>
+      <w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">제2조 [존속기간] </w:t></w:r>
+      <w:r><w:t xml:space="preserve">임대인은 위 부동산을 임대차 목적대로 사용할 수 있는 상태로 ${escapeXml(startLine)}까지 임차인에게 인도하며, 임대차 기간은 인도일로부터 ${escapeXml(endLine)}까지로 한다.</w:t></w:r>
+    </w:p>
+
+    ${STANDARD_CLAUSES_XML}
+
+    <!-- 특약사항 -->
+    <w:p>
+      <w:pPr><w:spacing w:before="320" w:after="120"/></w:pPr>
+      <w:r><w:rPr><w:b/><w:sz w:val="28"/></w:rPr><w:t>[특약사항]</w:t></w:r>
+    </w:p>
+    ${clauseXml}
+
+    <!-- 서명 문구 -->
+    <w:p>
+      <w:pPr><w:spacing w:before="320" w:after="120"/></w:pPr>
+      <w:r><w:t xml:space="preserve">본 계약을 증명하기 위하여 계약 당사자가 이의 없음을 확인하고 각자 서명 또는 날인 한다.</w:t></w:r>
+    </w:p>
+    <w:p>
+      <w:pPr><w:jc w:val="right"/><w:spacing w:after="200"/></w:pPr>
+      <w:r><w:t xml:space="preserve">${escapeXml(todayStr)}</w:t></w:r>
+    </w:p>
+
+    <!-- 임대인 -->
+    ${buildPartyTable('임 대 인', {
+      address: v('landlord_address'),
+      id: v('landlord_id'),
+      phone: v('landlord_phone'),
+      name: v('landlord_name'),
+    })}
+
+    <!-- 임차인 -->
+    ${buildPartyTable('임 차 인', {
+      address: v('tenant_address'),
+      id: v('tenant_id'),
+      phone: v('tenant_phone'),
+      name: v('tenant_name'),
+    })}
+
+    <!-- 공인중개사 (빈 필드) -->
+    ${buildPartyTable('공인중개사', {
+      address: '', id: '', phone: '', name: ''
+    }, true)}
+
+    <w:sectPr>
+      <w:pgSz w:w="11906" w:h="16838"/>
+      <w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="720" w:footer="720" w:gutter="0"/>
+      <w:cols w:space="720"/>
+    </w:sectPr>
+  </w:body>
+</w:document>`;
+
+  // ─────────────────────────────────────────────────────
+  // ZIP 구성 (minimal .docx)
+  // ─────────────────────────────────────────────────────
+  const zip = new JSZip();
+  zip.file('[Content_Types].xml', CONTENT_TYPES_XML);
+  zip.folder('_rels').file('.rels', ROOT_RELS_XML);
+  zip.folder('word').file('document.xml', documentXml);
+  zip.folder('word').folder('_rels').file('document.xml.rels', WORD_RELS_XML);
+  zip.folder('word').file('styles.xml', STYLES_XML);
+
   return await zip.generateAsync({
     type: 'blob',
     mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    compression: 'DEFLATE'
+    compression: 'DEFLATE',
   });
 }
+
+/** XML 안전 이스케이프 */
+function escapeXml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+/** 숫자를 "1억5천만원" 같은 한국어 금액으로 변환 (만원 단위 입력) */
+function koreanAmount(manwon) {
+  const n = Math.floor(Math.abs(Number(manwon) || 0));
+  if (n === 0) return '영원';
+  const 억 = Math.floor(n / 10000);
+  const 만 = n % 10000;
+  const parts = [];
+  if (억) parts.push(`${억}억`);
+  if (만) parts.push(`${만.toLocaleString()}만`);
+  return parts.join(' ') + '원';
+}
+
+/** 라벨-값 2열 테이블 생성 */
+function buildKvTable(rows) {
+  const rowsXml = rows.map(([label, val]) => `
+    <w:tr>
+      <w:tc>
+        <w:tcPr>
+          <w:tcW w:w="2200" w:type="dxa"/>
+          <w:shd w:val="clear" w:color="auto" w:fill="F2F2F2"/>
+          <w:tcBorders>
+            <w:top w:val="single" w:sz="4" w:color="CCCCCC"/>
+            <w:left w:val="single" w:sz="4" w:color="CCCCCC"/>
+            <w:bottom w:val="single" w:sz="4" w:color="CCCCCC"/>
+            <w:right w:val="single" w:sz="4" w:color="CCCCCC"/>
+          </w:tcBorders>
+        </w:tcPr>
+        <w:p>
+          <w:pPr><w:spacing w:before="60" w:after="60"/></w:pPr>
+          <w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">${label}</w:t></w:r>
+        </w:p>
+      </w:tc>
+      <w:tc>
+        <w:tcPr>
+          <w:tcW w:w="7400" w:type="dxa"/>
+          <w:tcBorders>
+            <w:top w:val="single" w:sz="4" w:color="CCCCCC"/>
+            <w:left w:val="single" w:sz="4" w:color="CCCCCC"/>
+            <w:bottom w:val="single" w:sz="4" w:color="CCCCCC"/>
+            <w:right w:val="single" w:sz="4" w:color="CCCCCC"/>
+          </w:tcBorders>
+        </w:tcPr>
+        <w:p>
+          <w:pPr><w:spacing w:before="60" w:after="60"/></w:pPr>
+          <w:r><w:t xml:space="preserve">${val || ' '}</w:t></w:r>
+        </w:p>
+      </w:tc>
+    </w:tr>`).join('');
+
+  return `<w:tbl>
+    <w:tblPr>
+      <w:tblW w:w="9600" w:type="dxa"/>
+      <w:tblLayout w:type="fixed"/>
+    </w:tblPr>
+    <w:tblGrid>
+      <w:gridCol w:w="2200"/>
+      <w:gridCol w:w="7400"/>
+    </w:tblGrid>
+    ${rowsXml}
+  </w:tbl>`;
+}
+
+/** 당사자 테이블 (임대인/임차인/공인중개사) */
+function buildPartyTable(partyLabel, fields, isBroker = false) {
+  const border = `<w:tcBorders>
+    <w:top w:val="single" w:sz="4" w:color="CCCCCC"/>
+    <w:left w:val="single" w:sz="4" w:color="CCCCCC"/>
+    <w:bottom w:val="single" w:sz="4" w:color="CCCCCC"/>
+    <w:right w:val="single" w:sz="4" w:color="CCCCCC"/>
+  </w:tcBorders>`;
+
+  const labelCell = (text, width, span = 1) => `
+    <w:tc>
+      <w:tcPr>
+        <w:tcW w:w="${width}" w:type="dxa"/>
+        ${span > 1 ? `<w:gridSpan w:val="${span}"/>` : ''}
+        <w:shd w:val="clear" w:color="auto" w:fill="F2F2F2"/>
+        ${border}
+      </w:tcPr>
+      <w:p><w:pPr><w:spacing w:before="60" w:after="60"/></w:pPr>
+        <w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">${text}</w:t></w:r></w:p>
+    </w:tc>`;
+  const dataCell = (text, width, span = 1) => `
+    <w:tc>
+      <w:tcPr>
+        <w:tcW w:w="${width}" w:type="dxa"/>
+        ${span > 1 ? `<w:gridSpan w:val="${span}"/>` : ''}
+        ${border}
+      </w:tcPr>
+      <w:p><w:pPr><w:spacing w:before="60" w:after="60"/></w:pPr>
+        <w:r><w:t xml:space="preserve">${text || ' '}</w:t></w:r></w:p>
+    </w:tc>`;
+
+  // 1행: [당사자명 | 주소(긴 셀)]
+  // 2행: [(빈) | 주민번호 | 전화 | 성명 | (인)]
+  return `<w:tbl>
+    <w:tblPr>
+      <w:tblW w:w="9600" w:type="dxa"/>
+      <w:tblLayout w:type="fixed"/>
+      <w:tblCellMargin>
+        <w:top w:w="40" w:type="dxa"/>
+        <w:left w:w="100" w:type="dxa"/>
+        <w:bottom w:w="40" w:type="dxa"/>
+        <w:right w:w="100" w:type="dxa"/>
+      </w:tblCellMargin>
+    </w:tblPr>
+    <w:tblGrid>
+      <w:gridCol w:w="1600"/>
+      <w:gridCol w:w="2000"/>
+      <w:gridCol w:w="2000"/>
+      <w:gridCol w:w="2000"/>
+      <w:gridCol w:w="2000"/>
+    </w:tblGrid>
+    <w:tr>
+      ${labelCell(partyLabel, 1600)}
+      ${labelCell('주 소', 2000)}
+      ${dataCell(fields.address, 6000, 3)}
+    </w:tr>
+    <w:tr>
+      ${labelCell('', 1600)}
+      ${labelCell(isBroker ? '사업자번호' : '주민등록번호', 2000)}
+      ${dataCell(fields.id, 2000)}
+      ${labelCell('전 화', 1000)}
+      ${dataCell(fields.phone, 1000)}
+      ${labelCell('성 명', 1000)}
+      ${dataCell((fields.name || '') + ' (인)', 2000)}
+    </w:tr>
+  </w:tbl>
+  <w:p><w:pPr><w:spacing w:after="120"/></w:pPr></w:p>`;
+}
+
+// ─────────────────────────────────────────────────────
+// DOCX ZIP 부속 파일들 (고정 템플릿)
+// ─────────────────────────────────────────────────────
+const CONTENT_TYPES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>`;
+
+const ROOT_RELS_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`;
+
+const WORD_RELS_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`;
+
+const STYLES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:docDefaults>
+    <w:rPrDefault><w:rPr>
+      <w:rFonts w:ascii="Malgun Gothic" w:eastAsia="Malgun Gothic" w:hAnsi="Malgun Gothic"/>
+      <w:sz w:val="22"/>
+    </w:rPr></w:rPrDefault>
+    <w:pPrDefault><w:pPr><w:spacing w:after="120" w:line="300" w:lineRule="auto"/></w:pPr></w:pPrDefault>
+  </w:docDefaults>
+</w:styles>`;
+
+// 표준 임대차 계약 조항 (제3~9조) — 한국 표준 양식 그대로
+const STANDARD_CLAUSES_XML = `
+    <w:p><w:pPr><w:spacing w:after="120"/></w:pPr>
+      <w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">제3조 [용도변경 및 전대 등] </w:t></w:r>
+      <w:r><w:t xml:space="preserve">임차인은 임대인의 동의 없이 위 부동산의 용도나 구조를 변경하거나 전대, 임차권 양도 또는 담보제공을 하지 못하며 임대차 목적 이외의 용도로 사용할 수 없다.</w:t></w:r>
+    </w:p>
+    <w:p><w:pPr><w:spacing w:after="120"/></w:pPr>
+      <w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">제4조 [계약의 해지] </w:t></w:r>
+      <w:r><w:t xml:space="preserve">임차인이 제3조를 위반하였을 때 임대인은 즉시 본 계약을 해지할 수 있다.</w:t></w:r>
+    </w:p>
+    <w:p><w:pPr><w:spacing w:after="120"/></w:pPr>
+      <w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">제5조 [계약의 종료] </w:t></w:r>
+      <w:r><w:t xml:space="preserve">임대차계약이 종료된 경우 임차인은 위 부동산을 원상으로 회복하여 임대인에게 반환한다. 이러한 경우 임대인은 보증금을 임차인에게 반환하고, 연체 임대료 또는 손해배상금이 있을 때는 이들을 제하고 그 잔액을 반환한다.</w:t></w:r>
+    </w:p>
+    <w:p><w:pPr><w:spacing w:after="120"/></w:pPr>
+      <w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">제6조 [계약의 해제] </w:t></w:r>
+      <w:r><w:t xml:space="preserve">임차인이 임대인에게 중도금(중도금이 없을 때는 잔금)을 지불하기 전까지 임대인은 계약금의 배액을 상환하고, 임차인은 계약금을 포기하고 본 계약을 해제할 수 있다.</w:t></w:r>
+    </w:p>
+    <w:p><w:pPr><w:spacing w:after="120"/></w:pPr>
+      <w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">제7조 [채무불이행과 손해배상] </w:t></w:r>
+      <w:r><w:t xml:space="preserve">임대인 또는 임차인은 본 계약상의 내용에 대하여 불이행이 있을 경우 그 상대방은 불이행한 자에 대하여 서면으로 최고하고 계약을 해제할 수 있다. 이 경우 계약 당사자는 계약해제에 따른 손해배상을 각각 상대방에 대하여 청구할 수 있으며, 손해배상에 대하여 별도의 약정이 없는 한 계약금을 손해배상의 기준으로 본다.</w:t></w:r>
+    </w:p>
+    <w:p><w:pPr><w:spacing w:after="120"/></w:pPr>
+      <w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">제8조 [중개보수] </w:t></w:r>
+      <w:r><w:t xml:space="preserve">개업공인중개사는 임대인 또는 임차인의 본 계약 불이행에 대하여 책임을 지지 않는다. 또한 중개보수는 본 계약 체결과 동시에 계약 당사자 쌍방이 각각 지불하며, 개업공인중개사의 고의나 과실 없이 본 계약이 무효, 취소 또는 해제 되어도 중개보수는 지급한다.</w:t></w:r>
+    </w:p>
+    <w:p><w:pPr><w:spacing w:after="120"/></w:pPr>
+      <w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">제9조 [중개대상물확인설명서교부 등] </w:t></w:r>
+      <w:r><w:t xml:space="preserve">개업공인중개사는 중개대상물확인설명서를 작성하고 업무보증관계증서(공제증서 등) 사본을 첨부하여 거래당사자 쌍방에게 교부한다.</w:t></w:r>
+    </w:p>`;
+
 async function generateContract() {
-  const apiKey = document.getElementById('api-key').value.trim();
-  if (!templateBuffer) { alert('템플릿이 로드되지 않았어요.'); return; }
   if (!lastAnalysisResult) { alert('먼저 분석을 진행해주세요.'); return; }
   const btn = document.getElementById('gen-doc-btn');
   const statusEl = document.getElementById('doc-gen-status');
   btn.disabled = true;
   btn.innerHTML = '<span class="mini-spinner"></span> 생성 중...';
   statusEl.classList.add('show');
-  statusEl.textContent = '🔄 템플릿 XML 수정 중...';
+  statusEl.textContent = '🔄 계약서 생성 중...';
   try {
     const docInfo = lastAnalysisResult._docInfo || {};
     const existing = docInfo.existing_special_clauses || [];
     const missingClauses = detectMissingClauses(existing, selectedContractType, docInfo);
-    const blob = await fillTemplateWithAI(apiKey, docInfo, missingClauses);
+    const blob = await generateContractDocx(docInfo, missingClauses, selectedContractType);
     const today = new Date().toISOString().slice(0, 10);
     const addr = (docInfo.building_name || docInfo.address || '부동산').replace(/[\\/:*?"<>|]/g, '').slice(0, 20);
     const filename = `임시계약서_${selectedContractType}_${addr}_${today}.docx`;
     saveAs(blob, filename);
     statusEl.style.background = '#e6f7ec';
     statusEl.style.color = '#1a7f44';
-    statusEl.innerHTML = `✅ ${filename} 다운로드 완료! 누락 특약 ${missingClauses.length}개 자동 추가됨`;
+    statusEl.innerHTML = `✅ ${filename} 다운로드 완료! 특약 ${existing.length + missingClauses.length}개 포함 (기존 ${existing.length} + 자동 보완 ${missingClauses.length})`;
   } catch(e) {
+    console.error('계약서 생성 실패:', e);
     statusEl.style.background = '#fdecea';
     statusEl.style.color = '#c0392b';
     statusEl.innerHTML = '❌ 생성 실패: ' + e.message;
