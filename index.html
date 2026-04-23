@@ -331,8 +331,48 @@
   .result-list li::before { content: '•'; position: absolute; left: 0; color: #ccc; }
 
   .clause-list { list-style: none; padding: 0; }
-  .clause-list li { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f5f5f5; font-size: 13.5px; line-height: 1.6; color: #333; }
-  .clause-list li:last-child { border-bottom: none; }
+  .clause-list .clause-item {
+    display: block;   /* 새 구조: 제목 row + 본문 row 분리 */
+    padding: 10px 0 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+    font-size: 13.5px; line-height: 1.6; color: #333;
+  }
+  .clause-list .clause-item:last-of-type { border-bottom: none; }
+  .clause-list .clause-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 6px;
+  }
+  .clause-title {
+    flex: 1;
+    font-weight: 600;
+    color: #222;
+    font-size: 13.5px;
+  }
+  .clause-full-text {
+    margin-left: 30px;     /* clause-num(20px) + gap */
+    font-size: 12.5px;
+    color: #555;
+    line-height: 1.75;
+    background: #fafafa;
+    border-left: 3px solid #c5d8ff;
+    padding: 8px 12px;
+    border-radius: 0 6px 6px 0;
+    white-space: pre-wrap;
+  }
+  .clause-copy-all-row {
+    display: block !important;
+    padding: 12px 0 4px 0 !important;
+    border-bottom: none !important;
+    text-align: center;
+  }
+  .clause-copy-all-btn {
+    background: #4a7cf7; color: #fff; border: none;
+    border-radius: 8px; padding: 8px 18px;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    font-family: 'Noto Sans KR', sans-serif;
+    transition: background 0.15s;
+  }
+  .clause-copy-all-btn:hover { background: #3d6ae3; }
   .clause-num { flex-shrink: 0; background: #4a7cf7; color: #fff; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; margin-top: 1px; }
   .clause-copy-inline { flex-shrink: 0; margin-left: auto; background: #f0f5ff; border: 1px solid #c5d8ff; color: #4a7cf7; border-radius: 6px; padding: 3px 9px; font-size: 11px; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; }
   .clause-copy-inline:hover { background: #e0eaff; }
@@ -1113,11 +1153,48 @@ function toggleTag(btn) {
   else { selectedTags.add(tag); btn.classList.add('selected'); }
 }
 function copyToClipboard(text) {
-  navigator.clipboard.writeText(text).then(() => {
+  if (!text) return;
+  const showToast = (msg) => {
     const t = document.getElementById('toast');
+    if (!t) return;
+    t.textContent = msg;
     t.classList.add('show');
     setTimeout(() => t.classList.remove('show'), 1800);
-  });
+  };
+
+  // 1차 시도: 최신 Clipboard API
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text)
+      .then(() => showToast('📋 복사되었어요!'))
+      .catch((err) => {
+        console.warn('clipboard API 실패, fallback 시도:', err);
+        legacyCopy(text, showToast);
+      });
+    return;
+  }
+  // 2차 fallback (구형 브라우저 / http 환경)
+  legacyCopy(text, showToast);
+}
+
+/** execCommand('copy') 기반 fallback */
+function legacyCopy(text, showToast) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  ta.style.top = '0';
+  ta.style.left = '0';
+  document.body.appendChild(ta);
+  ta.focus();
+  ta.select();
+  try {
+    const ok = document.execCommand('copy');
+    showToast(ok ? '📋 복사되었어요!' : '❌ 복사 실패');
+  } catch (e) {
+    console.error('legacy copy failed:', e);
+    showToast('❌ 복사 실패');
+  }
+  document.body.removeChild(ta);
 }
 
 /* 자동 특약 생성 */
@@ -1155,14 +1232,22 @@ JSON 외 다른 텍스트 없이 응답하세요.`
     const raw = data.content.map(c => c.text || '').join('');
     const clean = raw.replace(/```json|```/g, '').trim();
     const clauses = JSON.parse(clean);
-    body.innerHTML = clauses.map((c) => `
-      <div class="generated-clause-item">
+    body.innerHTML = clauses.map((c, i) => `
+      <div class="generated-clause-item" data-gen-clause-index="${i}">
         <div style="flex:1">
-          <div style="font-size:11px;color:#888;margin-bottom:3px">📌 ${c.situation} — ${c.reason}</div>
-          <div style="font-size:13.5px;line-height:1.6;color:#222">${c.clause}</div>
+          <div style="font-size:11px;color:#888;margin-bottom:3px">📌 ${escapeHtml(c.situation || '')} — ${escapeHtml(c.reason || '')}</div>
+          <div style="font-size:13.5px;line-height:1.6;color:#222">${escapeHtml(c.clause || '')}</div>
         </div>
-        <button class="clause-copy-btn" onclick="copyToClipboard(${JSON.stringify(c.clause)})">복사</button>
+        <button type="button" class="clause-copy-btn" data-gen-copy-index="${i}">복사</button>
       </div>`).join('');
+    // 이벤트 위임 — 생성된 특약 복사
+    body.onclick = (ev) => {
+      const btn = ev.target.closest('[data-gen-copy-index]');
+      if (btn) {
+        const idx = parseInt(btn.getAttribute('data-gen-copy-index'), 10);
+        if (!isNaN(idx) && clauses[idx]) copyToClipboard(clauses[idx].clause);
+      }
+    };
   } catch(e) {
     body.innerHTML = `<div style="padding:12px;font-size:13px;color:#c0392b">오류: ${e.message}</div>`;
   }
@@ -1857,7 +1942,12 @@ ${mortgageContext}
   },
   "risks": ["위험요소1"],
   "safe_reasons": ["안전 근거1"],
-  "special_clauses": ["필수 특약사항1"],
+  "special_clauses": [
+    {
+      "title": "특약 짧은 제목 (예: '근저당권 말소 특약 (배액배상 조항 포함)')",
+      "full_text": "계약서에 그대로 넣을 수 있는 구체적 문구. 여러 줄 가능. 채권자/채권최고액 등 실제값이 있으면 대입, 없으면 OOO으로 표시. 예: '임대인(매도인)은 잔금 지급과 동시에 해당 주택의 근저당권(채권최고액 금 150,000,000원, 채권자 OOO)을 말소하며, 이를 위반할 시 계약은 무효로 하고 계약금의 배액을 배상한다.'"
+    }
+  ],
   "advice": "기타 조언",
   "missing_info": [
     { "key": "필드명", "label": "항목명", "hint": "힌트" }
@@ -1876,7 +1966,13 @@ ${mortgageContext}
    - 말소특약이 없거나 불분명(release_clause_exists=false)이면 무조건 safety_level 최소 "주의"
 3. required_actions는 4단계(계약당일 → 잔금일 → 상환즉시 → 잔금이후) 전부 포함.
 4. release_clause_recommendation은 채권최고액·채권자 실제 값으로 완성된 특약 문구.
-5. 근저당이 없으면 mortgage_info.has_mortgage=false, 나머지 필드는 null/빈배열 가능.`
+5. 근저당이 없으면 mortgage_info.has_mortgage=false, 나머지 필드는 null/빈배열 가능.
+6. **special_clauses는 반드시 객체 배열**:
+   - title: 짧고 명확한 제목 (예: '근저당권 말소 특약', '보증금 반환 보장 조항')
+   - full_text: **계약서에 복사-붙여넣기로 바로 사용 가능한 완전한 특약 문구**
+   - 채권최고액·채권자 등 실제 값이 서류에서 추출되었으면 그 값을 대입
+   - 값이 없거나 불명확하면 OOO으로 표시 (예: "채권자 OOO", "금 OOO원")
+   - 권고 문구엔 위반 시 조치(계약 무효/배액배상 등)를 구체적으로 포함`
       }
     ]
   }];
@@ -2941,12 +3037,56 @@ function renderResult(r) {
     document.getElementById('safe-section').style.display = 'block';
   }
   if (r.special_clauses && r.special_clauses.length) {
-    document.getElementById('clauses-list').innerHTML = r.special_clauses.map((x, i) => `
-      <li>
-        <span class="clause-num">${i+1}</span>
-        <span style="flex:1">${x}</span>
-        <button class="clause-copy-inline" onclick="copyToClipboard(${JSON.stringify(x)})">복사</button>
+    // 구 포맷(문자열) + 신 포맷(객체) 둘 다 호환
+    const normalized = r.special_clauses.map(c => {
+      if (typeof c === 'string') {
+        return { title: c, full_text: c };
+      }
+      return {
+        title: c.title || c.full_text?.slice(0, 50) + '...' || '특약',
+        full_text: c.full_text || c.title || '',
+      };
+    });
+
+    // 각 특약 항목
+    const itemsHtml = normalized.map((c, i) => `
+      <li class="clause-item" data-clause-index="${i}">
+        <div class="clause-header">
+          <span class="clause-num">${i + 1}</span>
+          <span class="clause-title">${escapeHtml(c.title)}</span>
+          <button type="button" class="clause-copy-inline" data-copy-index="${i}">📋 복사</button>
+        </div>
+        <div class="clause-full-text">${escapeHtml(c.full_text)}</div>
       </li>`).join('');
+
+    // 전체 복사용 합친 문구
+    const allText = normalized.map((c, i) => `${i + 1}. ${c.title}\n${c.full_text}`).join('\n\n');
+
+    document.getElementById('clauses-list').innerHTML = `
+      ${itemsHtml}
+      <li class="clause-copy-all-row">
+        <button type="button" class="clause-copy-all-btn" id="clause-copy-all-btn">
+          📑 전체 특약 한 번에 복사
+        </button>
+      </li>`;
+
+    // 이벤트 위임 — 개별 복사
+    const clausesList = document.getElementById('clauses-list');
+    clausesList.addEventListener('click', (ev) => {
+      const btn = ev.target.closest('[data-copy-index]');
+      if (btn) {
+        const idx = parseInt(btn.getAttribute('data-copy-index'), 10);
+        if (!isNaN(idx) && normalized[idx]) {
+          copyToClipboard(normalized[idx].full_text);
+        }
+      }
+    });
+    // 전체 복사
+    const allBtn = document.getElementById('clause-copy-all-btn');
+    if (allBtn) {
+      allBtn.addEventListener('click', () => copyToClipboard(allText));
+    }
+
     document.getElementById('clauses-section').style.display = 'block';
   }
   if (r.advice) {
