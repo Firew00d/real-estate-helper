@@ -530,7 +530,7 @@
 <header>
   <span>🏠</span>
   <h1>부동산 계약서 AI 분석</h1>
-  <span class="subtitle build-stamp">빌드: 2026-04-23 11:08</span>
+  <span class="subtitle build-stamp">빌드: 2026-04-23 11:30</span>
 </header>
 
 <div class="container">
@@ -972,9 +972,9 @@ const REQUIRED_CLAUSES = [
     id: 'landlord_account',
     category: ['월세', '전세'],
     title: '임대인 계좌',
-    keywords: ['임대인 계좌', '계좌번호', '국민', '99290417067'],
+    keywords: ['임대인 계좌', '계좌번호', '입금 계좌', '입금계좌', '예금주'],
     content:
-`- 임대인 계좌: 국민, 김홍식 99290417067`
+`- 계약금, 잔금 및 월세는 임대인 소유자 명의 계좌({{landlordAccount}})로 입금한다.`
   },
   {
     id: 'general_terms',
@@ -1396,8 +1396,14 @@ async function extractAddressFromDocs(apiKey, contentArr) {
   "balance_payment": "잔금 숫자만 (만원, 없으면 null)",
   "balance_payment_date": "잔금 지급일 (없으면 null)",
   "management_fee": "관리비 숫자만 (만원, 없으면 null)",
-  "existing_special_clauses": ["기존 특약 문장들 배열"]
-}`
+  "landlord_account": "임대인 소유자 명의의 계약금·잔금·월세 입금 계좌 정보 (예: '국민은행 123-456-789012 홍길동'). 없으면 null. 형식은 '은행명 계좌번호 예금주'.",
+  "existing_special_clauses": "오직 **'특약사항' 또는 '특약' 이라고 명시된 섹션 아래**에 기재된 항목만 문자열 배열로 추출. 계약서 본문의 표준 조항(제1조 목적, 보증금/계약금/잔금 칸, 제2조 존속기간, 제3~9조 등)은 절대 포함하지 않음. 특약사항 섹션이 없거나 비어있으면 빈 배열 []."
+}
+
+⚠️ existing_special_clauses 추출 주의사항:
+- 계약서 본문에 나오는 '금 이억이천만원정' 같은 금액 문구, '임차인은 YYYY년 MM월 DD일에 지불한다' 같은 지급 조항은 **특약이 아님** (본문)
+- 특약사항은 보통 계약서 하단에 **"[특약사항]"**, **"※특약사항"**, **"-특약-"** 등의 헤더 아래에 번호(1., 2., 가., 나.)로 나열됨
+- 이런 헤더가 없으면 배열은 [] 빈 값`
       }
     ]
   }];
@@ -2046,9 +2052,13 @@ function substituteTokens(text, docInfo) {
     ? Number(docInfo.prior_debt).toLocaleString() + '만원'
     : '______만원';
   const creditor = docInfo.creditor || docInfo.prior_debt_creditor || '______(은행/채권자명)';
+  // 임대인 계좌 정보 - 서류에서 추출된 값 우선, 없으면 공란(수기 기입용)
+  const landlordAccount = docInfo.landlord_account
+    || '○○은행 ○○○-○○○○-○○○○, 예금주: ______';
   return text
     .replace(/\{\{priorDebtMax\}\}/g, priorDebtMax)
-    .replace(/\{\{creditor\}\}/g, creditor);
+    .replace(/\{\{creditor\}\}/g, creditor)
+    .replace(/\{\{landlordAccount\}\}/g, landlordAccount);
 }
 
 function previewMissingClauses() {
@@ -2093,19 +2103,31 @@ async function generateContractDocx(docInfo, missingClauses, contractType) {
   const todayStr = `${today.getFullYear()}년 ${String(today.getMonth()+1).padStart(2,'0')}월 ${String(today.getDate()).padStart(2,'0')}일`;
 
   // ── 특약사항 텍스트 합성: 기존 특약 + 자동 보완 특약
+  // 각 항목은 { source: 'existing' | 'ai', text: '실제 문구' } 형태
   const existingClauses = Array.isArray(data.existing_special_clauses) ? data.existing_special_clauses : [];
-  const clauseItems = [
-    ...existingClauses.map(x => String(x).trim()).filter(Boolean),
-    ...(missingClauses || []).map(c => `[${c.title}]\n${String(c.content || '').trim()}`),
-  ];
+  const structuredClauses = buildStructuredClauses(existingClauses, missingClauses || []);
 
   // ── 보증금/차임 라인 구성
   const depositLine = data.lease_price ? formatMoney(data.lease_price) : '';
-  const downPaymentLine = data.down_payment
-    ? `${formatMoney(data.down_payment)}은 계약시에 지급하고 영수함.`
+
+  // 계약금·잔금이 서류에서 추출 안 된 경우 관례상 추정값 사용 (계약금 10%)
+  // 사용자가 정확한 값 필요 시 재분석 패널에서 보완 가능
+  let effDownPayment = data.down_payment;
+  let effBalancePayment = data.balance_payment;
+  if (data.lease_price && !effDownPayment && !effBalancePayment) {
+    // 둘 다 없으면: 계약금 = 보증금의 10%, 잔금 = 나머지
+    effDownPayment = Math.round(Number(data.lease_price) * 0.1);
+    effBalancePayment = Number(data.lease_price) - effDownPayment;
+  } else if (data.lease_price && effDownPayment && !effBalancePayment) {
+    // 계약금만 있으면 잔금 = 보증금 - 계약금
+    effBalancePayment = Number(data.lease_price) - Number(effDownPayment);
+  }
+
+  const downPaymentLine = effDownPayment
+    ? `${formatMoney(effDownPayment)}은 계약시에 지급하고 영수함.`
     : '금                       정         은 계약시에 지급하고 영수함.';
-  const balanceLine = data.balance_payment
-    ? `${formatMoney(data.balance_payment)}은 ${formatDate(data.balance_payment_date) || '      년      월      일'}에 지급한다.`
+  const balanceLine = effBalancePayment
+    ? `${formatMoney(effBalancePayment)}은 ${formatDate(data.balance_payment_date) || '      년      월      일'}에 지급한다.`
     : `금                       정         은       년      월      일에 지급한다.`;
   const monthlyLine = data.monthly_rent
     ? `${formatMoney(data.monthly_rent)}은 매월 ${data.monthly_rent_day || ''}일에 지급한다.`
@@ -2118,16 +2140,8 @@ async function generateContractDocx(docInfo, missingClauses, contractType) {
     ? formatDate(data.contract_end)
     : '     년      월      일';
 
-  // ── 특약 XML
-  const clauseXml = clauseItems.length === 0
-    ? `<w:p><w:r><w:t xml:space="preserve">1. </w:t></w:r></w:p><w:p><w:r><w:t xml:space="preserve">2. </w:t></w:r></w:p>`
-    : clauseItems.map((c, i) => {
-        const lines = c.split('\n').filter(line => line.trim());
-        return lines.map((line, j) => {
-          const prefix = j === 0 ? `${i + 1}. ` : '   ';
-          return `<w:p><w:r><w:t xml:space="preserve">${escapeXml(prefix + line)}</w:t></w:r></w:p>`;
-        }).join('');
-      }).join('');
+  // ── 특약 XML — 구분자 포함, 연속 번호
+  const clauseXml = buildClauseXmlForOptionA(structuredClauses);
 
   // ─────────────────────────────────────────────────────
   // document.xml 전체 조립
@@ -2154,11 +2168,26 @@ async function generateContractDocx(docInfo, missingClauses, contractType) {
     </w:p>
     ${buildKvTable([
       ['소 재 지', v('address')],
-      ['건물명', v('building_name')],
-      ['건물종류', v('building_type')],
-      ['전용면적', data.area ? `${escapeXml(String(data.area))} ㎡` : ''],
-      ['층', v('floor')],
-    ])}
+      // 건물명은 값이 있을 때만 추가 (undefined 반환 = 행 생략)
+      data.building_name ? ['건물명', v('building_name')] : null,
+      data.building_type ? ['건물종류', v('building_type')] : null,
+      data.area ? ['전용면적', `${escapeXml(String(data.area))} ㎡`] : null,
+      data.floor ? ['층', v('floor')] : null,
+      // 토지 정보
+      data.land_category ? ['토지 지목', v('land_category')] : null,
+      data.land_area ? ['토지 면적', `${escapeXml(String(data.land_area))} ㎡`] : null,
+      data.land_right_type ? ['대지권종류', v('land_right_type')] : null,
+      data.land_right_ratio ? ['대지권비율', v('land_right_ratio')] : null,
+      // 건물 정보
+      data.building_structure ? ['건물 구조', v('building_structure')] : null,
+      data.building_usage ? ['건물 용도', v('building_usage')] : null,
+      data.building_area && data.building_area !== data.area
+        ? ['건물 면적', `${escapeXml(String(data.building_area))} ㎡`] : null,
+      // 임대할 부분
+      data.rental_part ? ['임대할 부분', v('rental_part')] : null,
+      data.rental_part_area && data.rental_part_area !== data.area
+        ? ['임대할 부분 면적', `${escapeXml(String(data.rental_part_area))} ㎡`] : null,
+    ].filter(Boolean))}
 
     <!-- 2. 계약 내용 -->
     <w:p>
@@ -2270,6 +2299,68 @@ function koreanAmount(manwon) {
   if (억) parts.push(`${억}억`);
   if (만) parts.push(`${만.toLocaleString()}만`);
   return parts.join(' ') + '원';
+}
+
+/**
+ * 기존 특약 + AI 자동보완 특약을 정리.
+ * @returns { existing: string[], ai: string[] }
+ *   - existing: 원본 서류의 특약 원문 (소제목 없이)
+ *   - ai: AI가 자동 보완한 특약의 본문 (제목은 별도로 처리하지 않고 본문만)
+ */
+function buildStructuredClauses(existingRaw, missingClauses) {
+  const existing = (existingRaw || [])
+    .map(x => String(x).trim())
+    .filter(Boolean);
+
+  // AI 자동 보완 특약은 content만 추출하되, "- " 접두사 유지 (여러 항목일 때)
+  // content가 여러 줄이면 각 줄을 별도 항목으로 간주해 평탄화
+  const ai = [];
+  for (const c of (missingClauses || [])) {
+    const lines = String(c.content || '').split('\n')
+      .map(l => l.trim())
+      .filter(Boolean)
+      .map(l => l.replace(/^-\s*/, ''));   // 선두 '- ' 제거
+    ai.push(...lines);
+  }
+  return { existing, ai };
+}
+
+/**
+ * 옵션 A용: 구조화된 특약을 <w:p> 블록 XML로 렌더.
+ * - 기존 특약 먼저 (1, 2, 3, ...)
+ * - 그 다음 "<AI 분석 기반 추가 특약>" 구분자
+ * - AI 특약이 이어서 (4, 5, 6, ...)
+ */
+function buildClauseXmlForOptionA({ existing, ai }) {
+  if (existing.length === 0 && ai.length === 0) {
+    // 둘 다 없으면 빈 번호 2줄 (기존 동작 유지)
+    return `<w:p><w:r><w:t xml:space="preserve">1. </w:t></w:r></w:p><w:p><w:r><w:t xml:space="preserve">2. </w:t></w:r></w:p>`;
+  }
+
+  const paragraphs = [];
+  let num = 1;
+
+  // 기존 특약
+  for (const text of existing) {
+    paragraphs.push(
+      `<w:p><w:r><w:t xml:space="preserve">${escapeXml(`${num}. ${text}`)}</w:t></w:r></w:p>`
+    );
+    num++;
+  }
+
+  // AI 추가 특약이 있으면 구분자 + 이어서 번호
+  if (ai.length > 0) {
+    paragraphs.push(
+      `<w:p><w:pPr><w:spacing w:before="120"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t xml:space="preserve">&lt;AI 분석 기반 추가 특약&gt;</w:t></w:r></w:p>`
+    );
+    for (const text of ai) {
+      paragraphs.push(
+        `<w:p><w:r><w:t xml:space="preserve">${escapeXml(`${num}. ${text}`)}</w:t></w:r></w:p>`
+      );
+      num++;
+    }
+  }
+  return paragraphs.join('');
 }
 
 /** 라벨-값 2열 테이블 생성 */
@@ -2657,13 +2748,22 @@ async function generateContractFromTemplate(docInfo, missingClauses, contractTyp
   if (data.lease_price) {
     xml = replaceCellAfterLandmark(xml, '보 증 금', formatMoney(data.lease_price));
   }
-  if (data.down_payment) {
-    const txt = `${formatMoney(data.down_payment)}은 계약시에 지급하고 영수함.`;
+  // 계약금·잔금이 서류에서 추출 안 되면 관례상 추정 (계약금 10%)
+  let effDown = data.down_payment;
+  let effBalance = data.balance_payment;
+  if (data.lease_price && !effDown && !effBalance) {
+    effDown = Math.round(Number(data.lease_price) * 0.1);
+    effBalance = Number(data.lease_price) - effDown;
+  } else if (data.lease_price && effDown && !effBalance) {
+    effBalance = Number(data.lease_price) - Number(effDown);
+  }
+  if (effDown) {
+    const txt = `${formatMoney(effDown)}은 계약시에 지급하고 영수함.`;
     xml = replaceCellAfterLandmark(xml, '계 약 금', txt);
   }
-  if (data.balance_payment) {
+  if (effBalance) {
     const dt = formatDate(data.balance_payment_date) || '      년      월      일';
-    const txt = `${formatMoney(data.balance_payment)}은 ${dt}에 지급한다.`;
+    const txt = `${formatMoney(effBalance)}은 ${dt}에 지급한다.`;
     xml = replaceCellAfterLandmark(xml, '잔    금', txt);
   }
   if (data.monthly_rent) {
@@ -2704,12 +2804,9 @@ async function generateContractFromTemplate(docInfo, missingClauses, contractTyp
 
   // (d) 특약사항 — [특약사항] 뒤에 오는 빈 셀에 특약 삽입
   const existingClauses = Array.isArray(data.existing_special_clauses) ? data.existing_special_clauses : [];
-  const clauseItems = [
-    ...existingClauses.map(x => String(x).trim()).filter(Boolean),
-    ...(missingClauses || []).map(c => `[${c.title}]\n${String(c.content || '').trim()}`),
-  ];
-  if (clauseItems.length > 0) {
-    xml = injectClausesAfterLandmark(xml, '[특약사항]', clauseItems);
+  const structured = buildStructuredClauses(existingClauses, missingClauses || []);
+  if (structured.existing.length > 0 || structured.ai.length > 0) {
+    xml = injectClausesAfterLandmark(xml, '[특약사항]', structured);
   }
 
   zip.file('word/document.xml', xml);
@@ -2722,9 +2819,11 @@ async function generateContractFromTemplate(docInfo, missingClauses, contractTyp
 
 /**
  * [특약사항] 랜드마크가 있는 셀에 특약들을 삽입.
- * 원본 템플릿에는 "1." "2." 라는 빈 샘플 줄이 있는데, 이걸 먼저 제거하고 우리 특약을 삽입.
+ * 원본 템플릿의 "1." "2." 샘플은 제거하고 {existing[], ai[]} 구조로 삽입.
+ * - existing: 소제목 없이, 1번부터 연속 번호
+ * - ai: "<AI 분석 기반 추가 특약>" 구분자 다음 이어서 번호
  */
-function injectClausesAfterLandmark(xml, landmark, clauseItems) {
+function injectClausesAfterLandmark(xml, landmark, structured) {
   const lmIdx = xml.indexOf(`<w:t>${landmark}</w:t>`);
   if (lmIdx < 0) return xml;
 
@@ -2735,18 +2834,15 @@ function injectClausesAfterLandmark(xml, landmark, clauseItems) {
   tcEnd += '</w:tc>'.length;
 
   const tcBlock = xml.slice(tcStart, tcEnd);
-  // tcBlock 안에서 [특약사항] 라벨 <w:p> 끝 찾기
   const labelLmIdx = tcBlock.indexOf(`<w:t>${landmark}</w:t>`);
   const labelPEnd = tcBlock.indexOf('</w:p>', labelLmIdx);
   if (labelPEnd < 0) return xml;
   const afterLabelP = labelPEnd + '</w:p>'.length;
 
-  // 라벨 문단 뒤 ~ 셀 끝까지 = "1." / "2." 샘플 영역 (삭제 대상)
   const headerPart = tcBlock.slice(0, afterLabelP);
-  const bodyPart = tcBlock.slice(afterLabelP);   // 원본 샘플에서 스타일 뽑기용
+  const bodyPart = tcBlock.slice(afterLabelP);
 
-  // 원본 샘플 문단("1." 등)에서 <w:pPr>와 <w:rPr> 추출 → 동일 스타일로 우리 특약 생성
-  // 샘플 <w:p>가 있으면 그걸 복제 기반으로, 없으면 기본 스타일
+  // 원본 샘플 스타일 추출
   let sampleRpr = `<w:rPr><w:rFonts w:ascii="돋움체" w:eastAsia="돋움체" w:hAnsi="돋움체"/><w:sz w:val="14"/><w:shd w:val="clear" w:color="000000" w:fill="auto"/></w:rPr>`;
   let samplePpr = `<w:pPr><w:pStyle w:val="a3"/><w:spacing w:line="240" w:lineRule="auto"/></w:pPr>`;
   const sampleMatch = bodyPart.match(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/);
@@ -2754,25 +2850,35 @@ function injectClausesAfterLandmark(xml, landmark, clauseItems) {
     const samplePBlock = sampleMatch[0];
     const pprMatch = samplePBlock.match(/<w:pPr>[\s\S]*?<\/w:pPr>/);
     if (pprMatch) samplePpr = pprMatch[0];
-    // run의 rPr을 우선적으로 사용
     const runRprMatch = samplePBlock.match(/<w:r\b[^>]*>\s*<w:rPr>([\s\S]*?)<\/w:rPr>/);
-    if (runRprMatch) {
-      sampleRpr = `<w:rPr>${runRprMatch[1]}</w:rPr>`;
-    }
+    if (runRprMatch) sampleRpr = `<w:rPr>${runRprMatch[1]}</w:rPr>`;
   }
 
-  // 삽입할 XML — 원본 샘플 스타일(pPr + rPr) 그대로 사용
-  const clauseParagraphs = clauseItems.map((c, i) => {
-    const lines = c.split('\n').filter(l => l.trim());
-    return lines.map((line, j) => {
-      const prefix = j === 0 ? `${i + 1}. ` : '   ';
-      return `<w:p>${samplePpr}<w:r>${sampleRpr}<w:t xml:space="preserve">${escapeXml(prefix + line)}</w:t></w:r></w:p>`;
-    }).join('');
-  }).join('');
+  // 구분자용 볼드 rPr — 샘플 rPr에 <w:b/> 추가
+  const boldRpr = sampleRpr.replace('<w:rPr>', '<w:rPr><w:b/>');
 
-  // 새 셀 블록 조립: [라벨 <w:p>] + [우리 특약들 — 원본 샘플 스타일] + </w:tc>
+  const mkP = (text) =>
+    `<w:p>${samplePpr}<w:r>${sampleRpr}<w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r></w:p>`;
+  const mkBoldP = (text) =>
+    `<w:p>${samplePpr}<w:r>${boldRpr}<w:t xml:space="preserve">${escapeXml(text)}</w:t></w:r></w:p>`;
+
+  const { existing = [], ai = [] } = structured || {};
+  const paragraphs = [];
+  let num = 1;
+  for (const text of existing) {
+    paragraphs.push(mkP(`${num}. ${text}`));
+    num++;
+  }
+  if (ai.length > 0) {
+    paragraphs.push(mkBoldP('<AI 분석 기반 추가 특약>'));
+    for (const text of ai) {
+      paragraphs.push(mkP(`${num}. ${text}`));
+      num++;
+    }
+  }
+  const clauseParagraphs = paragraphs.join('');
+
   const newTcBlock = headerPart + clauseParagraphs + '</w:tc>';
-
   return xml.slice(0, tcStart) + newTcBlock + xml.slice(tcEnd);
 }
 
