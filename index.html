@@ -517,7 +517,7 @@
 <header>
   <span>🏠</span>
   <h1>부동산 계약서 AI 분석</h1>
-  <span class="subtitle build-stamp">2026-04-24 00:21</span>
+  <span class="subtitle build-stamp">2026-04-24 00:44</span>
 </header>
 
 <div class="container">
@@ -1819,29 +1819,49 @@ async function searchRealPriceViaWebSearch(apiKey, info, type) {
   const buildingName = info.building_name || '';
   const area = info.area ? `${info.area}㎡` : '';
 
+  // 마스킹 제거: 주소에서 *** 같은 마스킹 토큰을 빼고 실제 번지까지만 사용
+  const cleanAddress = address.replace(/\*+층|\*+호|\*+\s*$/g, '').replace(/\s+/g, ' ').trim();
+  // 핵심 위치 (동 이름까지)
+  const coreLocation = [info.si, info.gu, info.dong].filter(Boolean).join(' ');
+
   const messages = [{
     role: 'user',
     content: `당신은 대한민국 부동산 실거래가 전문 분석가입니다.
 
-다음 부동산의 최근 실거래가를 웹서치로 조회해주세요:
-- 주소: ${address}
+**목표 부동산**:
+- 전체 주소: ${cleanAddress}
+- 핵심 위치: ${coreLocation}
 - 건물명: ${buildingName || '(없음)'}
 - 건물 종류: ${type}
 - 전용면적: ${area || '(불명)'}
 
-웹서치로 국토교통부 실거래가나 네이버부동산 등에서 최근 1~2년 내 실거래 내역을 찾아주세요.
+**웹 검색 전략**:
+1. 먼저 **정확한 번지나 건물명**이 일치하는 거래 검색
+2. 정확한 매칭이 없으면 **같은 동 내 비슷한 조건**(같은 건물 종류, 비슷한 면적)의 거래도 수집
+3. 국토교통부 실거래가 공개시스템, 네이버부동산, 호갱노노, 아실, KB부동산 등 활용
+4. 최근 1~2년 내 데이터 우선
+
+**중요 원칙**:
+- 정확한 주소가 아닌 주변 거래도 **반드시 참고용으로 수집**
+- "추정 시세", "AI 예상가"는 제외 (실거래만)
+- 완전히 다른 동네나 유형은 제외
+
+**search_success 판정 기준**:
+- true: 목표 부동산 또는 **주변/유사 조건**의 실거래 데이터를 1건 이상 수집한 경우
+- false: 관련 실거래 데이터를 **전혀** 찾지 못한 경우
 
 조회 후 JSON 형식으로만 응답:
 {
   "search_success": true/false,
   "building_type_used": "${type}",
+  "match_level": "exact" | "nearby" | "none",   // exact=정확 일치, nearby=같은 동 주변, none=데이터 없음
   "recent_transactions": [
-    { "date": "2024-11", "type": "매매 또는 전세", "price": 숫자(만원), "area": 숫자(㎡), "floor": "층수 또는 null" }
+    { "date": "2024-11", "type": "매매 또는 전세", "price": 숫자(만원), "area": 숫자(㎡), "floor": "층수 또는 null", "address_hint": "거래된 주소/건물명 간단히 (예: '350-24번지', '○○빌라')" }
   ],
   "avg_sale_price": 숫자(만원) 또는 null,
   "avg_lease_price": 숫자(만원) 또는 null,
   "price_source": "출처 설명",
-  "search_note": "조회 과정 메모"
+  "search_note": "조회 과정 메모 — 정확한 매칭이 없으면 어느 주변 데이터를 참고했는지 설명"
 }`
   }];
   const webSearchTool = [{ type: 'web_search_20250305', name: 'web_search' }];
@@ -3292,23 +3312,39 @@ function renderPriceSection(r) {
 
 /**
  * 보조 웹검색 시세를 카드 형태로 렌더.
- * 국토부 API와 별개로 보조 참고용. 데이터 없으면 빈 문자열.
+ * 국토부 API와 별개로 보조 참고용.
+ * - 거래 데이터 있으면 테이블 표시
+ * - 실패해도 search_note는 표시 (왜 못 찾았는지 설명)
  */
 function buildWebPriceCard(webData) {
-  if (!webData || webData.search_success === false) {
+  if (!webData) {
     return `
       <div style="margin-top:14px;background:#fafafa;border:1px dashed #ddd;border-radius:8px;padding:10px 14px;font-size:12px;color:#888">
-        🌐 <strong>보조 웹 조회</strong>: 유효한 결과 없음 (웹 검색 실패 또는 데이터 부족)
+        🌐 <strong>보조 웹 조회</strong>: 조회 실행되지 않음
       </div>`;
   }
+
   const txs = Array.isArray(webData.recent_transactions) ? webData.recent_transactions : [];
   const avgSale = webData.avg_sale_price;
   const avgLease = webData.avg_lease_price;
+  const matchLevel = webData.match_level || (txs.length > 0 ? 'nearby' : 'none');
+
+  // 매칭 레벨 배지
+  let matchBadge = '';
+  if (matchLevel === 'exact') {
+    matchBadge = `<span style="background:#d1f0d8;color:#1a7f44;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;margin-left:6px">✓ 정확 일치</span>`;
+  } else if (matchLevel === 'nearby') {
+    matchBadge = `<span style="background:#fff4d6;color:#8a6410;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;margin-left:6px">~ 주변/유사</span>`;
+  } else {
+    matchBadge = `<span style="background:#f5d7d7;color:#a0323a;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;margin-left:6px">× 데이터 없음</span>`;
+  }
 
   const summaryParts = [];
   if (avgSale) summaryParts.push(`매매 평균 <strong>${Number(avgSale).toLocaleString()}만원</strong>`);
   if (avgLease) summaryParts.push(`전세 평균 <strong>${Number(avgLease).toLocaleString()}만원</strong>`);
-  const summary = summaryParts.length > 0 ? summaryParts.join(' · ') : '평균가 데이터 없음';
+  const summary = summaryParts.length > 0
+    ? summaryParts.join(' · ')
+    : (txs.length > 0 ? `참고 거래 ${txs.length}건` : '');
 
   const txRows = txs.slice(0, 10).map(tx => `
     <tr>
@@ -3317,6 +3353,7 @@ function buildWebPriceCard(webData) {
       <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0;text-align:right"><strong>${tx.price ? Number(tx.price).toLocaleString() + '만원' : '-'}</strong></td>
       <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0;text-align:right">${tx.area ? tx.area + '㎡' : '-'}</td>
       <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0">${escapeHtml(tx.floor || '-')}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0;font-size:11px;color:#888">${escapeHtml(tx.address_hint || '-')}</td>
     </tr>
   `).join('');
 
@@ -3329,26 +3366,40 @@ function buildWebPriceCard(webData) {
              <th style="padding:6px 8px;text-align:right;font-weight:600;color:#555">가격</th>
              <th style="padding:6px 8px;text-align:right;font-weight:600;color:#555">면적</th>
              <th style="padding:6px 8px;text-align:left;font-weight:600;color:#555">층</th>
+             <th style="padding:6px 8px;text-align:left;font-weight:600;color:#555">주소/건물</th>
            </tr>
          </thead>
          <tbody>${txRows}</tbody>
        </table>`
-    : '<div style="padding:10px;text-align:center;color:#888;font-size:12px">거래 내역을 찾지 못했어요</div>';
+    : '';
+
+  const hasAnyData = txs.length > 0 || summary;
+  const searchNote = webData.search_note
+    ? `<div style="margin-top:8px;padding:8px 10px;background:#f8f8f8;border-left:3px solid #ccc;font-size:11.5px;color:#555;line-height:1.6;border-radius:4px">💬 ${escapeHtml(webData.search_note)}</div>`
+    : '';
+
+  const warningBlock = matchLevel === 'nearby'
+    ? `<div style="margin-top:10px;padding:8px 10px;background:#fff7e6;border-left:3px solid #ffd687;font-size:11px;color:#704a00;border-radius:4px">
+         ⚠️ 정확한 주소 매칭이 아닌 <strong>주변 거래</strong> 참고 자료예요. 국토부 공식 API와 교차 확인을 권장해요.
+       </div>`
+    : matchLevel === 'exact'
+    ? `<div style="margin-top:10px;padding:8px 10px;background:#e6f7ec;border-left:3px solid #52c27a;font-size:11px;color:#1a5a33;border-radius:4px">
+         ✓ 정확한 주소/건물의 실거래 매칭. 국토부 API와 교차 검증하세요.
+       </div>`
+    : '';
 
   return `
-    <details style="margin-top:14px;border:1px solid #d4e5ff;border-radius:8px;padding:0;background:#f8fbff" open>
+    <details style="margin-top:14px;border:1px solid #d4e5ff;border-radius:8px;padding:0;background:#f8fbff" ${hasAnyData ? 'open' : ''}>
       <summary style="cursor:pointer;padding:10px 14px;font-size:12.5px;font-weight:600;color:#2a5bd7;list-style:none;display:flex;justify-content:space-between;align-items:center">
-        <span>🌐 보조 웹 조회 시세 (참고용)</span>
+        <span>🌐 보조 웹 조회 시세 (참고용)${matchBadge}</span>
         <span style="font-size:11px;color:#888">▼</span>
       </summary>
       <div style="padding:12px 14px;border-top:1px solid #d4e5ff;background:#fff">
-        <div style="font-size:12.5px;color:#334;line-height:1.7;margin-bottom:4px">${summary}</div>
+        ${summary ? `<div style="font-size:12.5px;color:#334;line-height:1.7;margin-bottom:4px">${summary}</div>` : ''}
         ${webData.price_source ? `<div style="font-size:11px;color:#888">📌 출처: ${escapeHtml(webData.price_source)}</div>` : ''}
-        ${webData.search_note ? `<div style="font-size:11px;color:#888;margin-top:2px">💬 ${escapeHtml(webData.search_note)}</div>` : ''}
         ${tableHtml}
-        <div style="margin-top:10px;padding:8px 10px;background:#fff7e6;border-left:3px solid #ffd687;font-size:11px;color:#704a00;border-radius:4px">
-          ⚠️ 웹 검색 기반 자료는 참고용이에요. 국토부 공식 API와 교차 확인을 권장해요.
-        </div>
+        ${searchNote}
+        ${warningBlock}
       </div>
     </details>`;
 }
