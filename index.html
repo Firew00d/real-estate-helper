@@ -517,7 +517,7 @@
 <header>
   <span>🏠</span>
   <h1>부동산 계약서 AI 분석</h1>
-  <span class="subtitle build-stamp">2026-04-24 00:44</span>
+  <span class="subtitle build-stamp">2026-04-24 09:51</span>
 </header>
 
 <div class="container">
@@ -4149,7 +4149,8 @@ function renderResult(r) {
           </div>
         </details>`;
 
-      document.getElementById('price-detail-table').innerHTML = queryPanel + tableHtml + refinePanel;
+      const webPanel = buildWebPriceCard(r._webPriceData);
+      document.getElementById('price-detail-table').innerHTML = queryPanel + tableHtml + refinePanel + webPanel;
       document.getElementById('price-detail-section').style.display = 'block';
 
       // ── 재조회 패널 이벤트 바인딩
