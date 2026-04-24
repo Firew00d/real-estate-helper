@@ -517,7 +517,7 @@
 <header>
   <span>🏠</span>
   <h1>부동산 계약서 AI 분석</h1>
-  <span class="subtitle build-stamp">2026-04-23 12:32</span>
+  <span class="subtitle build-stamp">2026-04-24 00:21</span>
 </header>
 
 <div class="container">
@@ -1373,7 +1373,7 @@ async function extractAddressFromDocs(apiKey, contentArr) {
   "dong": "동 이름만",
   "gu": "구 이름만",
   "si": "시/도 이름",
-  "building_name": "건물명 또는 아파트 단지명 (다음 패턴들에서 찾아보세요: ① 주소 뒤 괄호 안 '(동이름, 건물명)' 형식 — 예: '(북가좌동, 그린빌라)' → '그린빌라'. ② 임대인·임차인 주소에 나오는 '~아파트', '~빌라', '~빌리지' 등 건물명. ③ 제목이 '부동산(○○주택) 계약서'처럼 건물 유형만 있으면 건물명 아님. 진짜 건물명이 보이지 않으면 null)",
+  "building_name": "건물의 **고유 명칭** (단지명/빌라명). 예: '그린빌라', '래미안아파트', '파크뷰오피스텔'. 추출 규칙: ① 주소 뒤 괄호 안의 '(동이름, 건물명)' 형식이 가장 신뢰도 높음 — 예: '(북가좌동, 그린빌라)' → 정답은 '그린빌라' (쉼표 뒤 부분만). ② 주소에 '~아파트', '~빌라', '~빌리지', '~타운', '~하우스', '~오피스텔' 등 고유명사로 끝나는 단어. ③ **절대 하지 말 것**: 'building_structure'(예: 철근콘크리트구조)나 'building_usage'(예: 연립주택)의 값을 빌려오거나 결합하지 말 것. 예: '그린' + '콘크리트구조' 같이 다른 필드 값과 섞는 것 금지. ④ 진짜 건물명이 보이지 않으면 반드시 null. 추측 금지.",
   "building_type": "아파트/연립다세대/오피스텔/단독다가구 중 하나 (불분명하면 null)",
   "floor": "층수 (없으면 null)",
   "area": "전용면적 숫자만 (㎡, 없으면 null)",
@@ -1381,8 +1381,8 @@ async function extractAddressFromDocs(apiKey, contentArr) {
   "land_area": "토지 면적 숫자만 (㎡, 없으면 null)",
   "land_right_type": "대지권종류 (예: 소유권대지권 / 없으면 null)",
   "land_right_ratio": "대지권비율 (예: 12345.67분의 45.67 / 없으면 null)",
-  "building_structure": "건물 구조 (예: 철근콘크리트조 / 없으면 null)",
-  "building_usage": "건물 용도 (예: 공동주택, 아파트 / 없으면 null)",
+  "building_structure": "건물 구조 정보 (예: '철근콘크리트조', '벽돌조', '목조'). 계약서의 '구 조' 필드에서만 추출. 없으면 null. ⚠️ building_name과 절대 섞지 말 것.",
+  "building_usage": "건물 용도 (예: '공동주택', '연립주택', '아파트'). 계약서의 '용 도' 필드에서만. 없으면 null.",
   "building_area": "건물 면적 숫자만 (㎡, 없으면 null, 집합건물이면 area와 같을 수 있음)",
   "rental_part": "임대할 부분 (예: '전체', '제202호' / 없으면 null)",
   "rental_part_area": "임대할 부분 면적 숫자만 (㎡, 없으면 area와 동일)",
@@ -3113,6 +3113,22 @@ async function analyze() {
         docInfo.mortgage_date = null;
         docInfo.mortgage_release_clause_exists = false;
       }
+
+      // 🛡️ 건물명 환각 방지:
+      // 건물명에 "구조", "조", "콘크리트", "벽돌" 등 구조 관련 단어가 포함되면
+      // → AI가 building_structure와 혼동한 것일 가능성 높음 → null 리셋
+      if (docInfo.building_name) {
+        const bn = String(docInfo.building_name);
+        const structureKeywords = /(콘크리트|철근|벽돌|목조|시멘트|블록|내력벽)/;
+        const usageKeywords = /^(공동주택|연립주택|다세대주택|단독주택|공동|연립|다세대)$/;
+        if (structureKeywords.test(bn)) {
+          console.warn(`[건물명 환각 의심] "${bn}"에 구조 키워드 포함 → null로 리셋`);
+          docInfo.building_name = null;
+        } else if (usageKeywords.test(bn.trim())) {
+          console.warn(`[건물명 환각 의심] "${bn}"은 용도 단어 → null로 리셋`);
+          docInfo.building_name = null;
+        }
+      }
     }
 
     updateStep(STEPS, 2, [0, 1]);
@@ -3149,13 +3165,17 @@ async function analyze() {
     // Step 3: 보조 웹 조회 (국토부 API 결과와 별개로)
     updateStep(STEPS, 3, [0, 1, 2]);
     let webPriceData = null;
-    if (apiKey && docInfo && (docInfo.address || docInfo.gu || docInfo.dong)) {
+    if (docInfo && (docInfo.address || docInfo.gu || docInfo.dong)) {
       try {
+        console.log('[web-price] 보조 웹 조회 시작', { address: docInfo.address, bn: docInfo.building_name });
         webPriceData = await searchRealPriceViaWebSearch(apiKey, docInfo, buildingType);
+        console.log('[web-price] 결과:', webPriceData);
       } catch (e) {
-        console.warn('[web-price] 보조 웹 조회 실패:', e.message);
+        console.error('[web-price] 보조 웹 조회 실패:', e);
         webPriceData = null;
       }
+    } else {
+      console.warn('[web-price] 스킵: docInfo에 주소 없음', docInfo);
     }
 
     updateStep(STEPS, 4, [0, 1, 2, 3]);
