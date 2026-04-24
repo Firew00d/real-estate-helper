@@ -517,7 +517,7 @@
 <header>
   <span>🏠</span>
   <h1>부동산 계약서 AI 분석</h1>
-  <span class="subtitle build-stamp">2026-04-25 08:46</span>
+  <span class="subtitle build-stamp">2026-04-25 08:57</span>
 </header>
 
 <div class="container">
@@ -942,6 +942,18 @@ const REQUIRED_CLAUSES = [
 - 근저당권 말소 등기에 소요되는 모든 비용(등록면허세, 등기수수료, 법무사 수수료 등)은 임대인이 부담한다.
 - 잔금일에 임대인·임차인·법무사가 은행에서 동석하여 임차인의 잔금으로 선순위 채무를 상환하고, 즉시 은행으로부터 말소 접수증(접수번호 포함)을 교부받는다.
 - 잔금 지급일로부터 7일 이내 임차인이 등기사항전부증명서를 재발급받아 근저당권 말소 사실을 최종 확인할 수 있으며, 이때까지 말소가 완료되지 않을 경우 임대인은 지연 1일당 잔금의 0.03%를 손해배상금으로 지급한다.`
+  },
+  {
+    // 신탁 부동산인 경우에만 추가 (conditional: hasTrust)
+    id: 'trust_consent',
+    category: ['월세', '전세'],
+    title: '신탁 수탁자 동의 및 안전장치',
+    conditional: 'hasTrust',
+    keywords: ['신탁', '수탁자', '수탁자 동의', '신탁원부'],
+    content:
+`- 임대인은 본 부동산의 수탁자({{trustee}})로부터 본 임대차 계약 체결에 대한 서면 동의서 원본을 계약 체결 시까지 임차인에게 교부하며, 동의서를 교부하지 못할 경우 본 계약은 무효로 하고 임대인은 계약금의 배액을 배상한다.
+- 임대인은 본 부동산의 신탁원부(신탁의 목적·수익자·처분권 등 기재) 사본을 계약 체결 시 임차인에게 제공하며, 신탁 내용 중 임대차 계약의 효력을 저해하는 조항이 있을 경우 계약금을 즉시 반환하고 계약은 무효로 한다.
+- 재건축·재개발 정비사업 관련 신탁인 경우, 임대인은 정비사업의 진행 상황(사업시행인가·관리처분인가 단계 포함)과 예상 철거 시기를 서면으로 고지하며, 임차 기간 중 정비사업으로 인한 강제 이주가 발생하면 임대인은 잔여 보증금 반환 및 이주비 일체를 부담한다.`
   },
   {
     id: 'sale_notice',
@@ -1502,6 +1514,10 @@ async function extractAddressFromDocs(apiKey, contentArr) {
   "creditor": "근저당권자(은행/법인/개인)명 (없으면 null, 예: '국민은행', '농협은행 서울지점')",
   "mortgage_date": "근저당 설정일자 YYYY-MM-DD (없으면 null)",
   "mortgage_release_clause_exists": "특약에 근저당권 말소 조건(잔금 동시이행, 배액배상 등)이 이미 포함돼있으면 true, 없거나 불분명하면 false",
+  "is_trust": "등기부등본 갑구에 '신탁' 또는 '재신탁' 기록이 있으면 true, 없으면 false. 이미 말소된 신탁은 제외. 신탁은 '소유권이전 / 신탁' 또는 '수탁자: ~~주택재건축정비사업조합', '수탁자: ~~토지신탁' 같은 기록이 있음. 등기부등본이 없거나 갑구를 못 봤으면 null.",
+  "trustee": "신탁의 수탁자(실소유권자) 이름. 예: '주식회사한국토지신탁', '○○주택재건축정비사업조합'. 신탁 없으면 null.",
+  "is_redevelopment": "재건축/재개발 정비사업조합이 수탁자로 되어 있으면 true. 곧 철거 가능성 있는 부동산. 신탁 없거나 일반 신탁이면 false. 해당 없으면 null.",
+  "trust_notice_exists": "갑구에 '신탁주의사항'이 기재되어 있으면 true. 이 경우 신탁원부 확인이 법적으로 요구됨. 없거나 불분명하면 false.",
   "landlord_name": "임대인 이름 (없으면 null)",
   "landlord_id": "임대인 주민등록번호 또는 법인번호 (없으면 null)",
   "landlord_address": "임대인 주소 — 계약서 하단 **임대인 섹션의 '주소' 필드**에 적힌 값 전체. 괄호 안 '(동이름, 건물명)' 표기가 있어도 그대로 포함. 예: '서울특별시 서대문구 거북골로23길 70, 202호 (북가좌동, 그린빌라)'. 부동산 소재지(계약 대상)와 다를 수 있으니 **반드시 임대인 섹션에서만** 읽을 것. 없으면 null.",
@@ -2057,7 +2073,46 @@ async function finalAnalysis(apiKey, contentArr, docInfo, priceData, buildingTyp
 → max_amount, creditor, mortgage_date, lbr_ratio 등 모든 근저당 관련 필드는 **null**.
 → required_actions, release_clause_recommendation 등도 빈 배열/null로 두기.
 → **"근저당이 있을 수도 있다", "미확인이므로 위험 가능"** 같은 추측 문구 금지.
-→ 대신 additional_docs의 '등기부등본' 체크포인트에 "근저당권 설정 여부는 등기부등본 발급 후 확인 필요"로 기재.
+`;
+
+  // 🚨 신탁 컨텍스트 — 전세사기 주요 패턴
+  const isTrust = !!docInfo?.is_trust;
+  const trustContext = isTrust ? `
+[🚨 신탁 부동산 — 최고 위험도 이슈]
+- 신탁 여부: ✅ 신탁 등기 있음
+- 수탁자(실제 권한자): ${docInfo.trustee || '(미확인)'}
+- 재건축/재개발: ${docInfo.is_redevelopment ? '⚠️ 재건축·재개발 조합이 수탁자' : '일반 신탁'}
+- 신탁주의사항 기재: ${docInfo.trust_notice_exists ? '✅ 있음 — 신탁원부 확인 필수' : '불분명'}
+
+🚨 신탁 부동산의 특징과 위험성:
+- **실소유권(처분권)은 수탁자에게 있음**. 등기부 갑구의 원 소유자는 사실상 명의만 가짐.
+- **수탁자 동의 없는 임대차 계약은 무효 가능**. 임대인이 원 소유자로 되어있어도 법적 효력 없을 수 있음.
+- **신탁원부를 반드시 확인**해야 함. 등기부등본만으로는 임대 가능 여부·조건·수익자 파악 불가.
+- **재건축·재개발 조합이 수탁자**라면 곧 철거되어 임차인이 쫓겨날 위험.
+- **대항력 상실 위험**: 신탁 부동산에 전입해도 보증금 회수 보장 안 됨.
+
+→ risks 배열에 **신탁 관련 위험을 반드시 최상위로 기재**.
+→ required_verifications에 "신탁원부 확인, 수탁자 동의서 필수" 추가.
+→ 신탁의 경우 risk_level은 최소 "주의" 이상, 재건축 조합 수탁이면 "위험".
+→ special_clauses에 "수탁자 동의서 징구 특약" 자동 포함 권고.
+` : '';
+
+  // 📋 첨부 서류 상태 컨텍스트 (AI가 어떤 서류를 받았는지 명시적으로 알리기)
+  // 휴리스틱으로 판단: 등기부등본 특유 정보(근저당/신탁) 있으면 등기부, 계약 조건 있으면 계약서
+  const hasRegistryData = hasMortgage || isTrust || docInfo?.trustee;
+  const hasContractData = !!(docInfo?.lease_price || docInfo?.existing_special_clauses?.length || docInfo?.landlord_name);
+  const hasBuildingLedger = !!(docInfo?.building_structure && docInfo?.building_usage && docInfo?.land_area);
+  const attachedDocsContext = `
+[📋 첨부 서류 현황 — AI가 받은 서류 확인]
+- 등기부등본(집합건물/건물/토지): ${hasRegistryData ? '✅ 있음 (을구·갑구 정보 추출됨)' : '❌ 없음 또는 미인식'}
+- 임대차계약서: ${hasContractData ? '✅ 있음 (계약 조건 추출됨)' : '❌ 없음 또는 미인식'}
+- 건축물대장: ${hasBuildingLedger ? '✅ 있음 (건물 구조/용도 추출됨)' : '❌ 없음 또는 미인식'}
+
+🚨 중요: additional_docs 작성 규칙
+- ✅로 표시된 서류는 "이미 첨부됨"으로 간주하고 **확인된 내용을 체크포인트에 반영**할 것.
+- ❌로 표시된 서류만 "아직 미확인, 발급 후 확인 필요"로 표기.
+- 예: 등기부등본이 ✅면 → "근저당권 X건 확인됨", "소유자 OOO 확인됨" 같이 **실제 분석 내용** 기재.
+- 이미 첨부된 서류를 다시 "발급받으라"고 하는 것은 금지.
 `;
 
   const messages = [{
@@ -2071,6 +2126,8 @@ async function finalAnalysis(apiKey, contentArr, docInfo, priceData, buildingTyp
 ${extraInfo ? `\n[사용자 추가 입력]\n${extraInfo}` : ''}
 ${priceContext}
 ${mortgageContext}
+${trustContext}
+${attachedDocsContext}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 【근저당권 말소 조건 계약 — 전문 지식】
@@ -2213,19 +2270,33 @@ ${mortgageContext}
    - 채권최고액·채권자 등 실제 값이 서류에서 추출되었으면 그 값을 대입
    - 값이 없거나 불명확하면 OOO으로 표시 (예: "채권자 OOO", "금 OOO원")
    - 권고 문구엔 위반 시 조치(계약 무효/배액배상 등)를 구체적으로 포함
-7. **required_verifications와 additional_docs 항목은 반드시 포함**:
+7. **required_verifications와 additional_docs 항목 작성 규칙**:
    - required_verifications: 임대인 신원 확인은 보안상 AI에 업로드하지 않고 **계약 당일 대면 확인**이 원칙임을 알림
-   - additional_docs: 등기부등본·건축물대장이 첨부되지 않았으면 해당 서류의 체크 포인트를 명시
-     * 건축물대장이 없으면 **위반건축물 여부·사용승인일·용도(주거용인지)** 확인이 필수임을 강조
-     * 계약서·이미지만으로는 위반건축물 식별 불가능 → 건축물대장 발급 요청
-   - 이미 해당 서류가 첨부된 것 같으면 check_points에서 확인한 내용을 반영, 그렇지 않으면 "아직 미확인, 발급 후 확인 필요"로 명시
+   - 🚨 **신탁 부동산(is_trust=true)인 경우** required_verifications에 반드시 추가:
+     * "신탁원부 발급 및 확인 (수탁자·수익자·처분권 범위)"
+     * "수탁자의 임대 동의서 원본 확인 — 이게 없으면 계약 무효 가능"
+     * "재건축 조합이 수탁자라면 철거 예정 시기 확인"
+   - additional_docs: **"첨부 서류 현황" 컨텍스트를 반드시 참조**
+     * ✅로 표시된 서류는 이미 분석된 내용을 체크포인트에 담을 것.
+       예) 등기부등본이 ✅면 → "근저당권 X건 / 신탁 여부 / 소유자 OOO 확인됨" 같이
+       **실제로 분석된 내용**을 체크포인트에 기재
+     * ❌로 표시된 서류만 "아직 미확인, 발급 후 확인 필요"로 표기
+     * 이미 첨부된 서류를 다시 발급받으라고 하는 것은 금지
+     * 신탁이 있으면 additional_docs에 **"신탁원부" 항목** 반드시 추가
 
 8. **risks 배열에 절대 포함하지 말아야 하는 항목** (이미 다른 섹션에서 다루기 때문에 중복 표시 금지):
    - ❌ "임대인 신원 확인 서류 부족" / "신분증 미확인" / "인감증명서 부재" → required_verifications에서 이미 안내
    - ❌ "등기부등본 미첨부" / "건축물대장 미첨부" → additional_docs에서 이미 안내
    - ❌ "추가 서류 확인 필요" 류의 일반적 권고 → additional_docs가 담당
-   - ✅ risks에는 **계약 조건 자체의 위험**만 기재 (예: 전세가율 높음, 근저당 설정됨, 불리한 특약 포함, 계약금이 비정상적으로 큼 등)
-   - risks는 "이미 존재하는 구체적 위험"이지 "서류가 부족해서 확인 못 한 것"이 아님`
+   - ✅ risks에는 **계약 조건 자체의 위험**만 기재 (예: 전세가율 높음, 근저당 설정됨, **신탁 부동산임**, 불리한 특약 포함 등)
+   - risks는 "이미 존재하는 구체적 위험"이지 "서류가 부족해서 확인 못 한 것"이 아님
+
+9. **신탁 부동산 분석 (is_trust=true인 경우)** — 최우선 처리:
+   - risks 최상위에 "이 부동산은 신탁되어 있어 실제 처분권은 수탁자(XXX)에게 있음. 원 소유자와 임대 계약 시 무효 가능성" 기재
+   - risk_level은 최소 "주의", 재건축 조합 수탁이면 "위험"
+   - special_clauses에 **"신탁 수탁자의 임대 동의서 징구 특약"** 반드시 추가
+     예: "임대인은 본 부동산의 수탁자인 (수탁자명) 로부터 임대차 계약에 대한 서면 동의서를 계약 체결 전까지 교부하며, 동의서를 교부하지 못할 시 본 계약은 무효로 하고 계약금의 배액을 반환한다."
+   - overall_advice에 신탁 부동산 계약의 본질적 위험 강조`
       }
     ]
   }];
@@ -2242,12 +2313,14 @@ function detectMissingClauses(existingClauses, contractType, docInfo = {}) {
   const existingText = (existingClauses || []).join(' ');
   const missing = [];
   const hasPriorDebt = !!(docInfo.prior_debt && Number(docInfo.prior_debt) > 0);
+  const hasTrust = !!docInfo.is_trust;
 
   for (const clause of REQUIRED_CLAUSES) {
     if (!clause.category.includes(effectiveType)) continue;
 
     // 조건부 특약 필터링
     if (clause.conditional === 'hasPriorDebt' && !hasPriorDebt) continue;
+    if (clause.conditional === 'hasTrust' && !hasTrust) continue;
 
     const found = clause.keywords.some(kw => existingText.includes(kw));
     if (!found) {
@@ -2273,10 +2346,13 @@ function substituteTokens(text, docInfo) {
   // 임대인 계좌 정보 - 서류에서 추출된 값 우선, 없으면 공란(수기 기입용)
   const landlordAccount = docInfo.landlord_account
     || '○○은행 ○○○-○○○○-○○○○, 예금주: ______';
+  // 신탁 수탁자
+  const trustee = docInfo.trustee || '______(신탁 수탁자명)';
   return text
     .replace(/\{\{priorDebtMax\}\}/g, priorDebtMax)
     .replace(/\{\{creditor\}\}/g, creditor)
-    .replace(/\{\{landlordAccount\}\}/g, landlordAccount);
+    .replace(/\{\{landlordAccount\}\}/g, landlordAccount)
+    .replace(/\{\{trustee\}\}/g, trustee);
 }
 
 /**
