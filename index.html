@@ -517,7 +517,7 @@
 <header>
   <span>🏠</span>
   <h1>부동산 계약서 AI 분석</h1>
-  <span class="subtitle build-stamp">2026-04-24 10:22</span>
+  <span class="subtitle build-stamp">2026-04-24 10:45</span>
 </header>
 
 <div class="container">
@@ -1514,6 +1514,9 @@ async function fetchMolitPrice(info, buildingType, tradeType, overrides = {}) {
   if (!resp.ok) return { error: `Worker HTTP ${resp.status}` };
   const json = await resp.json();
   if (!json.ok) return { error: json.error || 'Worker error' };
+  console.log(`[molit ${tradeType}] 응답: ${json.transactions?.length || 0}건 (필터 후 ${json.filteredCount ?? '-'})`, {
+    sigungu: code, buildingType, buildingName: effectiveBuildingName, area: effectiveArea,
+  });
   return json;
 }
 
@@ -3542,6 +3545,14 @@ function renderPriceTableAndRefinePanel(r) {
   const qi = wd.queryInfo || {};
   const weekly = wd.weeklyAggregates || [];
 
+  // 분석 대상 계약이 전세·월세이면 기본 필터를 '전월세'로, 아니면 '전체'
+  const ctype = selectedContractType || inferContractType(r._docInfo || {});
+  const defaultTradeFilter = (ctype === '전세' || ctype === '월세') ? '전월세' : 'all';
+
+  // 유형별 개수 집계
+  const saleCount = weekly.filter(w => w.type === '매매').reduce((n, w) => n + (w.count || 0), 0);
+  const rentCount = weekly.filter(w => w.type === '전월세').reduce((n, w) => n + (w.count || 0), 0);
+
   const addressChip = qi.fullAddress
     ? maskAddressDetail(qi.fullAddress)
     : [qi.sido, qi.gu, qi.dong].filter(Boolean).join(' ');
@@ -3568,6 +3579,21 @@ function renderPriceTableAndRefinePanel(r) {
 
   let tableHtml = '';
   let totalOutliers = 0;
+
+  // 필터 버튼 UI (매매/전월세 데이터 둘 다 있을 때만 의미있음)
+  const filterButtonsHtml = (saleCount > 0 && rentCount > 0) ? `
+    <div style="display:flex;gap:6px;margin-bottom:8px;font-size:11.5px">
+      <button class="trade-filter-btn" data-filter="all" style="padding:4px 10px;border:1px solid #ddd;background:#fff;border-radius:14px;cursor:pointer;font-family:inherit">
+        전체 (${saleCount + rentCount})
+      </button>
+      <button class="trade-filter-btn" data-filter="매매" style="padding:4px 10px;border:1px solid #ddd;background:#fff;border-radius:14px;cursor:pointer;font-family:inherit">
+        🏠 매매 (${saleCount})
+      </button>
+      <button class="trade-filter-btn" data-filter="전월세" style="padding:4px 10px;border:1px solid #ddd;background:#fff;border-radius:14px;cursor:pointer;font-family:inherit">
+        🔑 전월세 (${rentCount})
+      </button>
+    </div>` : '';
+
   if (weekly.length > 0) {
     let lastWeek = '';
     let toggle = false;
@@ -3596,7 +3622,7 @@ function renderPriceTableAndRefinePanel(r) {
       }
 
       rowsHtml.push(`
-        <tr style="${bgStyle}">
+        <tr style="${bgStyle}" data-trade-type="${w.type}">
           <td style="white-space:nowrap;font-weight:500">${w.weekLabel}</td>
           <td>${w.type}</td>
           <td>${priceDisplay}</td>
@@ -3632,7 +3658,8 @@ function renderPriceTableAndRefinePanel(r) {
       <div style="font-size:11.5px;color:#666;margin-bottom:6px;line-height:1.5">
         📊 <strong>주차별 평균 가격</strong> (최신 주차부터 ↓) ${outlierNote}
       </div>
-      <table class="price-table">
+      ${filterButtonsHtml}
+      <table class="price-table" id="price-weekly-table">
         <thead>
           <tr>
             <th>조회일자 ↓</th>
@@ -3645,7 +3672,11 @@ function renderPriceTableAndRefinePanel(r) {
         <tbody>${rowsHtml.join('')}</tbody>
       </table>`;
   } else {
-    tableHtml = `<div style="padding:16px;text-align:center;color:#888;font-size:13px">조회된 실거래 내역이 없어요 (필터를 더 넓게 조정해보세요)</div>`;
+    // 데이터 자체가 없는 경우 - 매매만 없는지, 전월세만 없는지 구분해서 안내
+    const hasSaleAttempt = wd.totalCount > 0;
+    tableHtml = hasSaleAttempt
+      ? `<div style="padding:16px;text-align:center;color:#888;font-size:13px">필터 적용 후 남은 거래가 없어요. 오른쪽 재조회 패널에서 필터를 조정해보세요.</div>`
+      : `<div style="padding:16px;text-align:center;color:#888;font-size:13px">국토부 API에 해당 조건의 실거래 내역이 없어요.<br><span style="font-size:11.5px">※ 전월세 데이터는 지역·건물종류별로 제공 범위가 제한적일 수 있어요.</span></div>`;
   }
 
   const currentBN = qi.buildingName || '';
@@ -3726,6 +3757,39 @@ function renderPriceTableAndRefinePanel(r) {
   if (refineBtn) refineBtn.addEventListener('click', () => handleRefineSearch(r, false));
   const clearBtn = document.getElementById('refine-clear-btn');
   if (clearBtn) clearBtn.addEventListener('click', () => handleRefineSearch(r, true));
+
+  bindTradeFilterButtons(defaultTradeFilter);
+}
+
+/**
+ * 거래 유형 필터 버튼의 클릭 이벤트 바인딩 및 초기 상태 설정.
+ * CSS `display` 토글만으로 행 숨김/표시 (재렌더 없음)
+ */
+function bindTradeFilterButtons(initialFilter = 'all') {
+  const buttons = document.querySelectorAll('.trade-filter-btn');
+  if (buttons.length === 0) return;
+
+  const applyFilter = (filter) => {
+    // 버튼 활성 상태
+    buttons.forEach(b => {
+      const isActive = b.dataset.filter === filter;
+      b.style.background = isActive ? '#4a7cf7' : '#fff';
+      b.style.color = isActive ? '#fff' : '#555';
+      b.style.borderColor = isActive ? '#4a7cf7' : '#ddd';
+      b.style.fontWeight = isActive ? '600' : 'normal';
+    });
+    // 행 토글
+    const rows = document.querySelectorAll('#price-weekly-table tbody tr[data-trade-type]');
+    rows.forEach(tr => {
+      const type = tr.dataset.tradeType;
+      tr.style.display = (filter === 'all' || type === filter) ? '' : 'none';
+    });
+  };
+
+  buttons.forEach(b => {
+    b.addEventListener('click', () => applyFilter(b.dataset.filter));
+  });
+  applyFilter(initialFilter);
 }
 
 /**
@@ -4113,7 +4177,7 @@ function renderResult(r) {
           }
 
           rowsHtml.push(`
-            <tr style="${bgStyle}">
+            <tr style="${bgStyle}" data-trade-type="${w.type}">
               <td style="white-space:nowrap;font-weight:500">${w.weekLabel}</td>
               <td>${w.type}</td>
               <td>${priceDisplay}</td>
@@ -4150,7 +4214,25 @@ function renderResult(r) {
           <div style="font-size:11.5px;color:#666;margin-bottom:6px;line-height:1.5">
             📊 <strong>주차별 평균 가격</strong> (최신 주차부터 ↓) ${outlierNote}
           </div>
-          <table class="price-table">
+          ${(() => {
+            // 유형별 개수 집계
+            const saleCount = weekly.filter(w => w.type === '매매').reduce((n, w) => n + (w.count || 0), 0);
+            const rentCount = weekly.filter(w => w.type === '전월세').reduce((n, w) => n + (w.count || 0), 0);
+            if (!(saleCount > 0 && rentCount > 0)) return '';
+            return `
+              <div style="display:flex;gap:6px;margin-bottom:8px;font-size:11.5px">
+                <button class="trade-filter-btn" data-filter="all" style="padding:4px 10px;border:1px solid #ddd;background:#fff;border-radius:14px;cursor:pointer;font-family:inherit">
+                  전체 (${saleCount + rentCount})
+                </button>
+                <button class="trade-filter-btn" data-filter="매매" style="padding:4px 10px;border:1px solid #ddd;background:#fff;border-radius:14px;cursor:pointer;font-family:inherit">
+                  🏠 매매 (${saleCount})
+                </button>
+                <button class="trade-filter-btn" data-filter="전월세" style="padding:4px 10px;border:1px solid #ddd;background:#fff;border-radius:14px;cursor:pointer;font-family:inherit">
+                  🔑 전월세 (${rentCount})
+                </button>
+              </div>`;
+          })()}
+          <table class="price-table" id="price-weekly-table">
             <thead>
               <tr>
                 <th>조회일자 ↓</th>
@@ -4163,7 +4245,13 @@ function renderResult(r) {
             <tbody>${rowsHtml.join('')}</tbody>
           </table>`;
       } else {
-        tableHtml = `<div style="padding:16px;text-align:center;color:#888;font-size:13px">조회된 실거래 내역이 없어요 (해당 기간 이 지역/유형 거래 없음)</div>`;
+        // 매매/전월세 둘 다 없으면 — 이유 명확히
+        const saleCnt = (r._priceData?._saleCount) || 0;
+        const rentCnt = (r._priceData?._rentCount) || 0;
+        tableHtml = `<div style="padding:16px;text-align:center;color:#888;font-size:13px">
+          조회된 실거래 내역이 없어요 (해당 기간 이 지역/유형 거래 없음)
+          <div style="font-size:11.5px;color:#aaa;margin-top:4px">※ 특히 전월세 데이터는 지역·건물종류별로 제공이 제한적일 수 있어요.</div>
+        </div>`;
       }
 
       // ──────────────────────────────────────────────────────
@@ -4251,6 +4339,11 @@ function renderResult(r) {
       if (clearBtn) {
         clearBtn.addEventListener('click', () => handleRefineSearch(r, true));
       }
+
+      // 거래 유형 필터 버튼 — 전세/월세 계약이면 기본 '전월세' 필터, 아니면 '전체'
+      const ctype = selectedContractType || inferContractType(r._docInfo || {});
+      const defaultTradeFilter = (ctype === '전세' || ctype === '월세') ? '전월세' : 'all';
+      bindTradeFilterButtons(defaultTradeFilter);
     }
   }
 
