@@ -517,7 +517,7 @@
 <header>
   <span>🏠</span>
   <h1>부동산 계약서 AI 분석</h1>
-  <span class="subtitle build-stamp">2026-04-24 13:29</span>
+  <span class="subtitle build-stamp">2026-04-25 08:46</span>
 </header>
 
 <div class="container">
@@ -551,7 +551,7 @@
     <div class="upload-card" id="drop-zone" onclick="document.getElementById('file-input').click()">
       <div class="upload-icon">📄</div>
       <h2>파일을 드래그하거나 클릭해서 업로드</h2>
-      <p>등기부등본 · 건축물대장 · 임대차계약서 · 사진 등<br>PDF, JPG, PNG 모두 가능 · 여러 장 한 번에 가능</p>
+      <p>등기부등본 · 건축물대장 · 임대차계약서 · 사진 등<br>PDF, JPG, PNG · 여러 장 가능 · 이미지는 자동 압축 (PDF는 3MB까지)</p>
       <span class="btn btn-primary" onclick="event.stopPropagation(); document.getElementById('file-input').click()">파일 선택하기</span>
       <input type="file" id="file-input" accept=".pdf,image/*" multiple />
     </div>
@@ -1056,13 +1056,16 @@ function formatSize(b) {
 function renderFileList() {
   const list = document.getElementById('file-list');
   list.innerHTML = files.map((f, i) => {
+    const isPdf = f.type === 'application/pdf';
     const willCompress = f.type.startsWith('image/') && f.size > MAX_RAW_BYTES;
+    const pdfTooLarge = isPdf && f.size > MAX_RAW_BYTES;
     return `
     <div class="file-item">
-      <span class="file-icon">${f.type === 'application/pdf' ? '📄' : '🖼️'}</span>
+      <span class="file-icon">${isPdf ? '📄' : '🖼️'}</span>
       <span class="file-name">${f.name}</span>
       <span class="file-size">${formatSize(f.size)}</span>
       ${willCompress ? '<span style="font-size:10px;font-weight:600;background:#fff7e0;color:#996600;padding:2px 6px;border-radius:10px">📦 압축 예정</span>' : ''}
+      ${pdfTooLarge ? `<span style="font-size:10px;font-weight:600;background:#fdecea;color:#c0392b;padding:2px 6px;border-radius:10px" title="PDF는 압축 불가. 한도 ${formatSize(MAX_RAW_BYTES)} 초과 시 분석 실패. 이미지로 변환해서 올려보세요.">⚠️ 용량 초과</span>` : ''}
       <button class="file-remove" onclick="removeFile(${i})">✕</button>
     </div>`;
   }).join('');
@@ -1085,14 +1088,18 @@ dz.addEventListener('drop', (e) => {
   renderFileList();
 });
 
-/* 이미지 압축 */
-// 이미지 압축 제한
-// Worker 프록시 경유 시 큰 요청이 막히는 경우가 있어 보수적으로 설정.
-// Claude API는 이미지 1장당 최대 5MB까지 받지만, 실용상 1MB 이하로 압축해도
-// 서류 텍스트 판독엔 충분하고 속도/비용도 훨씬 개선됨.
-const MAX_BASE64_BYTES = 1 * 1024 * 1024;    // 1MB (기존 5MB → 1MB로 축소)
-const MAX_RAW_BYTES    = Math.floor(MAX_BASE64_BYTES * 0.74);
-const MAX_DIMENSION    = 1600;                // 기존 2000 → 1600px (서류 판독엔 충분)
+/* 이미지 / PDF 파일 크기 제한
+ *
+ * Claude API 실제 상한:
+ *   · 이미지 1장당 base64 약 5MB (원본은 약 3.75MB)
+ *   · PDF 1개당 base64 약 32MB (원본은 약 24MB)
+ *
+ * 하지만 Vercel Hobby 플랜 요청 body 제한(4.5MB) 고려해서 보수적으로 설정.
+ * 여러 파일이 한 요청에 들어가므로 파일당 4MB(base64)로 제한.
+ */
+const MAX_BASE64_BYTES = 4 * 1024 * 1024;    // 4MB (이전 1MB에서 완화)
+const MAX_RAW_BYTES    = Math.floor(MAX_BASE64_BYTES * 0.74);   // ~3MB raw
+const MAX_DIMENSION    = 2400;                // 해상도도 살짝 상향 (원래 1600)
 
 function loadImage(file) {
   return new Promise((res, rej) => {
@@ -1144,7 +1151,18 @@ async function compressImage(file) {
 }
 async function fileToBase64(file) {
   if (file.type === 'application/pdf') {
-    if (file.size > MAX_RAW_BYTES) throw new Error(`PDF 너무 큼 (${formatSize(file.size)})`);
+    // PDF는 압축 불가하지만, Claude API는 큰 PDF도 받을 수 있음.
+    // Vercel 프록시 한계(약 4.5MB 요청)를 고려해 3MB까지만 허용.
+    // 초과 시 친절한 안내로 안내.
+    if (file.size > MAX_RAW_BYTES) {
+      throw new Error(
+        `PDF 용량이 너무 커요 (${formatSize(file.size)} > ${formatSize(MAX_RAW_BYTES)} 한도).\n` +
+        `해결 방법:\n` +
+        `  · PDF를 이미지(PNG/JPG)로 변환해서 올려보세요 (이미지는 자동 압축됨)\n` +
+        `  · 또는 PDF 페이지 수를 줄여 다시 시도해보세요\n` +
+        `  · 스마트폰 '문서 스캔' 앱은 이미지로 저장하는 경우가 많아 더 가벼워요`
+      );
+    }
     const base64 = await blobToBase64(file);
     return { base64, mediaType: 'application/pdf', wasCompressed: false };
   }
