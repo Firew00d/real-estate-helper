@@ -517,7 +517,7 @@
 <header>
   <span>🏠</span>
   <h1>부동산 계약서 AI 분석</h1>
-  <span class="subtitle build-stamp">2026-04-24 10:11</span>
+  <span class="subtitle build-stamp">2026-04-24 10:22</span>
 </header>
 
 <div class="container">
@@ -1859,6 +1859,17 @@ async function searchRealPriceViaWebSearch(apiKey, info, type) {
 - "추정 시세", "AI 예상가"는 제외 (실거래만)
 - 완전히 다른 동네나 유형은 제외
 
+**🚨 거래 유형(type) 분류 주의사항 — 반드시 준수**:
+- **매매**: 소유권 이전. 통상 수억~수십억. price는 매매가.
+- **전세**: 월세 없이 보증금만. 통상 수천만~수억. price는 전세금(=보증금).
+- **월세**: 순수 월세 (보증금 없거나 소액). price는 **월 임대료** (만원 단위, 통상 20~200만원).
+- **반전세 (보증부월세)**: 큰 보증금 + 월세. type은 **"반전세"**로 표기하고 price는 **월세** 부분만 (보증금 아님).
+  * 예: "보증금 1억 / 월세 50만원" → type="반전세", price=50 (50만원), deposit=10000 (1억)
+- ❌ **절대 금지**: 보증금을 월세 가격으로 기재하지 말 것.
+  * 월세가 1,000만원을 넘어가는 경우는 현실에 거의 없음. 그보다 크면 거의 확실히 **보증금**이 잘못 들어간 것.
+  * price 기재 전에 "이 값이 월세로 상식적인가?" 점검. 월세인데 500만원 이상이면 반전세의 보증금일 가능성 매우 높음.
+- 확실하지 않은 거래는 수집하지 말 것.
+
 **search_success 판정 기준**:
 - true: 목표 부동산 또는 **주변/유사 조건**의 실거래 데이터를 1건 이상 수집한 경우
 - false: 관련 실거래 데이터를 **전혀** 찾지 못한 경우
@@ -1869,7 +1880,15 @@ async function searchRealPriceViaWebSearch(apiKey, info, type) {
   "building_type_used": "${type}",
   "match_level": "exact" | "nearby" | "none",   // exact=정확 일치, nearby=같은 동 주변, none=데이터 없음
   "recent_transactions": [
-    { "date": "2024-11", "type": "매매 또는 전세", "price": 숫자(만원), "area": 숫자(㎡), "floor": "층수 또는 null", "address_hint": "거래된 주소/건물명 간단히 (예: '350-24번지', '○○빌라')" }
+    {
+      "date": "2024-11",
+      "type": "매매 | 전세 | 월세 | 반전세",
+      "price": 숫자(만원) — 매매/전세면 거래금액, 월세면 월 임대료, 반전세면 월 임대료 부분,
+      "deposit": 숫자(만원) 또는 null — 반전세/월세의 보증금 (없으면 null),
+      "area": 숫자(㎡),
+      "floor": "층수 또는 null",
+      "address_hint": "거래된 주소/건물명 간단히 (예: '350-24번지', '○○빌라')"
+    }
   ],
   "avg_sale_price": 숫자(만원) 또는 null,
   "avg_lease_price": 숫자(만원) 또는 null,
@@ -3344,7 +3363,27 @@ function buildWebPriceCard(webData) {
       </div>`;
   }
 
-  const txs = Array.isArray(webData.recent_transactions) ? webData.recent_transactions : [];
+  // 🛡️ 거래 데이터 보정: 월세인데 금액이 비정상적으로 크면 반전세로 재분류
+  //    (보증금이 월세 가격으로 잘못 들어간 경우)
+  const rawTxs = Array.isArray(webData.recent_transactions) ? webData.recent_transactions : [];
+  const txs = rawTxs.map(tx => {
+    const copy = { ...tx };
+    const price = Number(copy.price) || 0;
+    const type = String(copy.type || '').trim();
+    // 월세 > 1,000만원: 거의 확실히 보증금이 잘못 들어간 것
+    if (type === '월세' && price > 1000) {
+      console.warn('[web-price 보정] 월세로 분류됐지만 금액 이상 → 반전세로 재분류:', copy);
+      copy.type = '반전세(추정)';
+      copy._corrected = true;
+      // deposit 필드가 없으면 price를 deposit으로 이동
+      if (!copy.deposit) {
+        copy.deposit = price;
+        copy.price = null;   // 월세 금액 불명
+      }
+    }
+    return copy;
+  });
+
   const avgSale = webData.avg_sale_price;
   const avgLease = webData.avg_lease_price;
   const matchLevel = webData.match_level || (txs.length > 0 ? 'nearby' : 'none');
@@ -3366,16 +3405,40 @@ function buildWebPriceCard(webData) {
     ? summaryParts.join(' · ')
     : (txs.length > 0 ? `참고 거래 ${txs.length}건` : '');
 
-  const txRows = txs.slice(0, 10).map(tx => `
+  const txRows = txs.slice(0, 10).map(tx => {
+    const correctionBadge = tx._corrected
+      ? `<span style="background:#fff4d6;color:#8a6410;padding:1px 5px;border-radius:4px;font-size:10px;margin-left:4px" title="월세 금액이 비정상적으로 커서 반전세로 자동 재분류됨">🔄 보정</span>`
+      : '';
+    // 가격 셀: 월세면 "월 OOO만원", 전세/매매면 금액, 반전세면 "보증금 + 월세"
+    let priceCell;
+    if (tx.type === '월세' && tx.price) {
+      priceCell = `월 ${Number(tx.price).toLocaleString()}만원`;
+    } else if ((tx.type === '반전세' || tx.type === '반전세(추정)') ) {
+      const parts = [];
+      if (tx.deposit) parts.push(`보증 ${Number(tx.deposit).toLocaleString()}만원`);
+      if (tx.price) parts.push(`월 ${Number(tx.price).toLocaleString()}만원`);
+      priceCell = parts.length ? parts.join('<br>') : '-';
+    } else {
+      priceCell = tx.price ? `${Number(tx.price).toLocaleString()}만원` : '-';
+    }
+    return `
     <tr>
       <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0">${escapeHtml(tx.date || '-')}</td>
-      <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0">${escapeHtml(tx.type || '-')}</td>
-      <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0;text-align:right"><strong>${tx.price ? Number(tx.price).toLocaleString() + '만원' : '-'}</strong></td>
+      <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0">${escapeHtml(tx.type || '-')}${correctionBadge}</td>
+      <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0;text-align:right;line-height:1.4"><strong>${priceCell}</strong></td>
       <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0;text-align:right">${tx.area ? tx.area + '㎡' : '-'}</td>
       <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0">${escapeHtml(tx.floor || '-')}</td>
       <td style="padding:5px 8px;border-bottom:1px solid #f0f0f0;font-size:11px;color:#888">${escapeHtml(tx.address_hint || '-')}</td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
+
+  // 보정된 거래 있으면 안내 문구
+  const hasCorrected = txs.some(t => t._corrected);
+  const correctionNote = hasCorrected
+    ? `<div style="margin-top:8px;padding:6px 10px;background:#fff7e6;border-left:3px solid #ffd687;font-size:11px;color:#704a00;border-radius:4px">
+         🔄 <strong>자동 보정</strong>: 월세 금액이 1,000만원 초과한 항목은 보증금이 월세로 잘못 들어간 것으로 판단해 <strong>반전세(추정)</strong>으로 재분류했어요.
+       </div>`
+    : '';
 
   const tableHtml = txs.length > 0
     ? `<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px">
@@ -3418,6 +3481,7 @@ function buildWebPriceCard(webData) {
         ${summary ? `<div style="font-size:12.5px;color:#334;line-height:1.7;margin-bottom:4px">${summary}</div>` : ''}
         ${webData.price_source ? `<div style="font-size:11px;color:#888">📌 출처: ${escapeHtml(webData.price_source)}</div>` : ''}
         ${tableHtml}
+        ${correctionNote}
         ${searchNote}
         ${warningBlock}
       </div>
