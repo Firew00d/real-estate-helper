@@ -517,7 +517,7 @@
 <header>
   <span>🏠</span>
   <h1>부동산 계약서 AI 분석</h1>
-  <span class="subtitle build-stamp">2026-04-24 10:45</span>
+  <span class="subtitle build-stamp">2026-04-24 10:55</span>
 </header>
 
 <div class="container">
@@ -1861,6 +1861,10 @@ async function searchRealPriceViaWebSearch(apiKey, info, type) {
 - 정확한 주소가 아닌 주변 거래도 **반드시 참고용으로 수집**
 - "추정 시세", "AI 예상가"는 제외 (실거래만)
 - 완전히 다른 동네나 유형은 제외
+- **📐 면적 필터 ±10% 엄격 적용**: 목표 면적이 명시되어 있으면 **±10% 이내 거래만** 수집.${area ? `
+  * 현재 목표: **${area}** → 허용 범위: **${(parseFloat(area) * 0.9).toFixed(1)}㎡ ~ ${(parseFloat(area) * 1.1).toFixed(1)}㎡**
+  * 이 범위 밖 거래는 절대 포함 금지. 예: ${area}에 대해 42㎡, 65㎡ 같이 차이 큰 거래는 제외.` : ''}
+  * 면적이 다른 매물은 평형·구조·가격대가 완전히 달라 비교 가치 없음.
 
 **🚨 거래 유형(type) 분류 주의사항 — 반드시 준수**:
 - **매매**: 소유권 이전. 통상 수억~수십억. price는 매매가.
@@ -3358,7 +3362,7 @@ function renderPriceSection(r) {
  * - 거래 데이터 있으면 테이블 표시
  * - 실패해도 search_note는 표시 (왜 못 찾았는지 설명)
  */
-function buildWebPriceCard(webData) {
+function buildWebPriceCard(webData, docInfo) {
   if (!webData) {
     return `
       <div style="margin-top:14px;background:#fafafa;border:1px dashed #ddd;border-radius:8px;padding:10px 14px;font-size:12px;color:#888">
@@ -3369,7 +3373,7 @@ function buildWebPriceCard(webData) {
   // 🛡️ 거래 데이터 보정: 월세인데 금액이 비정상적으로 크면 반전세로 재분류
   //    (보증금이 월세 가격으로 잘못 들어간 경우)
   const rawTxs = Array.isArray(webData.recent_transactions) ? webData.recent_transactions : [];
-  const txs = rawTxs.map(tx => {
+  const correctedTxs = rawTxs.map(tx => {
     const copy = { ...tx };
     const price = Number(copy.price) || 0;
     const type = String(copy.type || '').trim();
@@ -3387,8 +3391,38 @@ function buildWebPriceCard(webData) {
     return copy;
   });
 
-  const avgSale = webData.avg_sale_price;
-  const avgLease = webData.avg_lease_price;
+  // 📐 면적 필터 ±10% 적용 (docInfo에 목표 면적이 있을 때만)
+  const targetArea = Number(docInfo?.area || docInfo?.rental_part_area || docInfo?.building_area) || null;
+  let excludedByArea = 0;
+  let txs = correctedTxs;
+  if (targetArea) {
+    const lo = targetArea * 0.9;
+    const hi = targetArea * 1.1;
+    txs = correctedTxs.filter(tx => {
+      const a = Number(tx.area);
+      if (!a || isNaN(a)) return true;   // 면적 불명은 유지
+      const inRange = a >= lo && a <= hi;
+      if (!inRange) {
+        excludedByArea++;
+        console.log(`[web-price 면적제외] ${a}㎡ (목표 ${targetArea}㎡ ±10% → ${lo.toFixed(1)}~${hi.toFixed(1)})`, tx);
+      }
+      return inRange;
+    });
+  }
+
+  // 평균가는 필터 후 거래로 재계산 (AI가 준 값은 필터 전)
+  let avgSale = webData.avg_sale_price;
+  let avgLease = webData.avg_lease_price;
+  if (targetArea && excludedByArea > 0 && txs.length > 0) {
+    const salePrices = txs.filter(t => t.type === '매매' && Number(t.price) > 0).map(t => Number(t.price));
+    const leasePrices = txs.filter(t => t.type === '전세' && Number(t.price) > 0).map(t => Number(t.price));
+    avgSale = salePrices.length > 0
+      ? Math.round(salePrices.reduce((s, x) => s + x, 0) / salePrices.length)
+      : null;
+    avgLease = leasePrices.length > 0
+      ? Math.round(leasePrices.reduce((s, x) => s + x, 0) / leasePrices.length)
+      : null;
+  }
   const matchLevel = webData.match_level || (txs.length > 0 ? 'nearby' : 'none');
 
   // 매칭 레벨 배지
@@ -3443,6 +3477,13 @@ function buildWebPriceCard(webData) {
        </div>`
     : '';
 
+  // 면적 필터로 제외된 건수 안내
+  const areaFilterNote = excludedByArea > 0
+    ? `<div style="margin-top:8px;padding:6px 10px;background:#e8f4fd;border-left:3px solid #7ab8e6;font-size:11px;color:#1e5582;border-radius:4px">
+         📐 <strong>면적 필터 적용</strong>: 목표 면적 ${targetArea}㎡ ±10%(${(targetArea*0.9).toFixed(1)}~${(targetArea*1.1).toFixed(1)}㎡) 범위 밖 거래 <strong>${excludedByArea}건</strong>을 제외했어요.
+       </div>`
+    : '';
+
   const tableHtml = txs.length > 0
     ? `<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px">
          <thead>
@@ -3485,6 +3526,7 @@ function buildWebPriceCard(webData) {
         ${webData.price_source ? `<div style="font-size:11px;color:#888">📌 출처: ${escapeHtml(webData.price_source)}</div>` : ''}
         ${tableHtml}
         ${correctionNote}
+        ${areaFilterNote}
         ${searchNote}
         ${warningBlock}
       </div>
@@ -3743,7 +3785,7 @@ function renderPriceTableAndRefinePanel(r) {
       </div>
     </details>`;
 
-  const webPanel = buildWebPriceCard(r._webPriceData);
+  const webPanel = buildWebPriceCard(r._webPriceData, r._docInfo);
 
   document.getElementById('price-detail-table').innerHTML = queryPanel + tableHtml + refinePanel + webPanel;
 
@@ -4321,7 +4363,7 @@ function renderResult(r) {
           </div>
         </details>`;
 
-      const webPanel = buildWebPriceCard(r._webPriceData);
+      const webPanel = buildWebPriceCard(r._webPriceData, r._docInfo);
       document.getElementById('price-detail-table').innerHTML = queryPanel + tableHtml + refinePanel + webPanel;
       document.getElementById('price-detail-section').style.display = 'block';
 
