@@ -517,7 +517,7 @@
 <header>
   <span>🏠</span>
   <h1>부동산 계약서 AI 분석</h1>
-  <span class="subtitle build-stamp">2026-04-25 09:18</span>
+  <span class="subtitle build-stamp">2026-04-25 09:36</span>
 </header>
 
 <div class="container">
@@ -685,29 +685,39 @@
       <div id="pattern-items"></div>
     </div>
 
+    <!-- 💡 한줄 결론 — 가장 눈에 띄는 위치 (강조 디자인) -->
+    <div class="result-section" id="advice-section" style="display:none;background:linear-gradient(135deg,#e8f0ff 0%,#f0f5ff 100%);border:2px solid #4a7cf7;border-radius:12px;padding:18px 22px;margin-bottom:16px;box-shadow:0 2px 8px rgba(74,124,247,0.12)">
+      <div style="font-size:14px;font-weight:800;color:#2a5bd7;margin-bottom:8px;letter-spacing:-0.3px">💡 한줄 결론</div>
+      <div class="result-body" id="advice-body" style="font-size:15px;line-height:1.75;color:#1a2b50;font-weight:500"></div>
+    </div>
+
+    <!-- ⚖️ 유사 분쟁 케이스 — 결론 다음 -->
     <div class="dispute-section" id="dispute-section" style="display:none">
       <div class="dispute-title">⚖️ 유사 분쟁 케이스</div>
       <div id="dispute-items"></div>
     </div>
 
+    <!-- 💰 실거래가 한줄 요약 + 상세 접이식 -->
     <div class="result-section" id="gangton-section" style="display:none">
       <div class="result-section-title">📊 전세가율 위험도 분석 <span id="gangton-source-badge" style="font-size:11px;font-weight:400;color:#4a7cf7;margin-left:6px"></span></div>
       <div class="gangton-box">
         <div id="gangton-body"></div>
       </div>
-      <div id="price-detail-section" style="display:none;margin-top:10px">
-        <div style="font-size:12px;font-weight:600;color:#555;margin-bottom:6px">📊 조회된 실거래 내역</div>
-        <div id="price-detail-table"></div>
-      </div>
+      <!-- 한줄 시세 요약 -->
+      <div id="price-summary-line" style="display:none;background:#f8fafc;border-left:3px solid #94a3b8;padding:10px 14px;margin-top:10px;border-radius:4px;font-size:13px;line-height:1.6;color:#334"></div>
+      <!-- 상세 (접이식) -->
+      <details id="price-detail-section" style="display:none;margin-top:8px;border:1px solid #e0e0e0;border-radius:8px">
+        <summary style="cursor:pointer;padding:10px 14px;font-size:12.5px;font-weight:600;color:#555;list-style:none;display:flex;justify-content:space-between;align-items:center;background:#fafafa;border-radius:8px">
+          <span>📋 실거래가 상세 내역 (국토부 + 웹 조회)</span>
+          <span style="font-size:11px;color:#888">펼치기 ▼</span>
+        </summary>
+        <div style="padding:12px 14px;border-top:1px solid #eee">
+          <div id="price-detail-table"></div>
+        </div>
+      </details>
     </div>
 
-    <!-- 📝 분석 요약 — 결과 헤드라인 바로 밑 (한 줄 결론) -->
-    <div class="result-section" id="advice-section" style="display:none;background:#f0f5ff;border-left:4px solid #4a7cf7;padding:12px 16px;border-radius:6px;margin-bottom:14px">
-      <div style="font-size:12.5px;font-weight:700;color:#2a5bd7;margin-bottom:4px">💡 한줄 결론</div>
-      <div class="result-body" id="advice-body" style="font-size:13.5px;line-height:1.7;color:#334"></div>
-    </div>
-
-    <!-- 🆕 근저당권 안전도 분석 전용 카드 -->
+    <!-- 🏦 근저당권 안전도 분석 전용 카드 -->
     <div class="result-section" id="mortgage-section" style="display:none">
       <div class="result-section-title">🏦 근저당권 안전도 분석 <span id="mortgage-safety-badge" style="font-size:11px;font-weight:600;margin-left:6px"></span></div>
       <div id="mortgage-body"></div>
@@ -2354,13 +2364,14 @@ ${attachedDocsContext}
      * "신탁원부 발급 및 확인 (수탁자·수익자·처분권 범위)"
      * "수탁자의 임대 동의서 원본 확인 — 이게 없으면 계약 무효 가능"
      * "재건축 조합이 수탁자라면 철거 예정 시기 확인"
-   - additional_docs: **"첨부 서류 현황" 컨텍스트를 반드시 참조**
-     * ✅로 표시된 서류는 이미 분석된 내용을 체크포인트에 담을 것.
-       예) 등기부등본이 ✅면 → "근저당권 X건 / 신탁 여부 / 소유자 OOO 확인됨" 같이
-       **실제로 분석된 내용**을 체크포인트에 기재
-     * ❌로 표시된 서류만 "아직 미확인, 발급 후 확인 필요"로 표기
-     * 이미 첨부된 서류를 다시 발급받으라고 하는 것은 금지
-     * 신탁이 있으면 additional_docs에 **"신탁원부" 항목** 반드시 추가
+   - additional_docs: **"첨부 서류 현황" 컨텍스트 ✅ 표시를 절대적 기준으로 사용**
+     * ⚠️ ✅로 표시된 서류는 **이미 사용자가 업로드해서 분석에 사용된 서류**입니다. 이걸 다시 "추가 확인 서류"로 요구하면 사용자가 혼란스러워합니다.
+     * ✅로 표시된 서류는 **additional_docs에서 완전히 제외**할 것. 분석 결과는 risks/safe_reasons/mortgage_info 등 다른 섹션에 이미 반영됨.
+     * ❌로 표시된 서류만 additional_docs에 포함하고 "발급 후 확인 필요"로 표기.
+     * 예: 사용자가 등기부등본을 올렸으면 → 등기부등본은 additional_docs에서 제외.
+     *      그 대신 "신탁원부"(별도 서류) 같은 추가 발급 필요 서류만 기재.
+     * 신탁이 있고 신탁원부가 첨부되지 않았으면 additional_docs에 "신탁원부" 반드시 추가
+     * additional_docs에 항목이 하나도 없으면 빈 배열 [] 반환 OK
 
 8. **risks 배열에 절대 포함하지 말아야 하는 항목** (이미 다른 섹션에서 다루기 때문에 중복 표시 금지):
    - ❌ "임대인 신원 확인 서류 부족" / "신분증 미확인" / "인감증명서 부재" → required_verifications에서 이미 안내
@@ -4427,6 +4438,76 @@ function renderOwnershipAlert(docInfo) {
   box.style.display = alerts.length > 0 ? 'block' : 'none';
 }
 
+/**
+ * 실거래가 한줄 요약 표시.
+ * "서울 서대문구 북가좌동의 25.92㎡ 연립다세대 매매 시세 약 5,500만원" 같은 형식.
+ */
+function renderPriceSummaryLine(priceData, webPriceData, docInfo) {
+  const line = document.getElementById('price-summary-line');
+  if (!line) return;
+
+  const parts = [];
+  // 위치 + 건물 종류 + 면적
+  const locParts = [docInfo?.si, docInfo?.gu, docInfo?.dong].filter(Boolean);
+  const loc = locParts.length > 0 ? locParts.join(' ') : null;
+  const buildingType = docInfo?.building_type || priceData?.building_type_used;
+  const area = docInfo?.area || docInfo?.rental_part_area;
+
+  // 시세 요약
+  const summaryItems = [];
+  if (priceData?._workerData?.weeklyAggregates?.length > 0) {
+    const sales = priceData._workerData.weeklyAggregates.filter(w => w.type === '매매' && w.avgPrice > 0);
+    const rents = priceData._workerData.weeklyAggregates.filter(w => w.type === '전월세' && w.avgPrice > 0);
+    const totalSaleCount = sales.reduce((n, w) => n + (w.count || 0), 0);
+    const totalRentCount = rents.reduce((n, w) => n + (w.count || 0), 0);
+
+    if (sales.length > 0) {
+      const allSalePrices = sales.flatMap(w => Array(w.count || 1).fill(w.avgPrice));
+      const avgSale = Math.round(allSalePrices.reduce((s, x) => s + x, 0) / allSalePrices.length);
+      summaryItems.push(`매매 평균 약 <strong>${avgSale.toLocaleString()}만원</strong> (${totalSaleCount}건)`);
+    }
+    if (rents.length > 0) {
+      const allRentPrices = rents.flatMap(w => Array(w.count || 1).fill(w.avgPrice));
+      const avgRent = Math.round(allRentPrices.reduce((s, x) => s + x, 0) / allRentPrices.length);
+      summaryItems.push(`전월세 평균 약 <strong>${avgRent.toLocaleString()}만원</strong> (${totalRentCount}건)`);
+    }
+  }
+
+  // 데이터 없으면 숨김
+  if (summaryItems.length === 0 && !webPriceData) {
+    line.style.display = 'none';
+    return;
+  }
+
+  // 위치/면적/유형 설명 조립
+  const descParts = [];
+  if (loc) descParts.push(loc);
+  if (area) descParts.push(`${area}㎡`);
+  if (buildingType) descParts.push(buildingType);
+  const desc = descParts.length > 0 ? descParts.join(' · ') : '';
+
+  let content = '';
+  if (desc) {
+    content += `<div style="color:#64748b;font-size:11.5px;margin-bottom:4px">📍 ${escapeHtml(desc)} 시세 (국토부 실거래가 기준, 최근 3개월)</div>`;
+  }
+  if (summaryItems.length > 0) {
+    content += `<div>${summaryItems.join(' · ')}</div>`;
+  } else {
+    content += `<div style="color:#888">국토부 실거래 데이터 없음 — 보조 웹 조회 결과는 아래 상세 참고</div>`;
+  }
+
+  // 보조 웹 조회 요약도 살짝 (있으면)
+  if (webPriceData && (webPriceData.avg_sale_price || webPriceData.avg_lease_price)) {
+    const webItems = [];
+    if (webPriceData.avg_sale_price) webItems.push(`매매 ${Number(webPriceData.avg_sale_price).toLocaleString()}만원`);
+    if (webPriceData.avg_lease_price) webItems.push(`전세 ${Number(webPriceData.avg_lease_price).toLocaleString()}만원`);
+    content += `<div style="color:#64748b;font-size:11.5px;margin-top:4px">🌐 웹 보조 조회: ${webItems.join(' · ')}</div>`;
+  }
+
+  line.innerHTML = content;
+  line.style.display = 'block';
+}
+
 function renderResult(r) {
   const badgeMap = {
     '안전': ['✅ 안전', 'risk-safe'],
@@ -4577,6 +4658,9 @@ function renderResult(r) {
     html += `<div class="gangton-verdict">${g.verdict}</div>`;
     document.getElementById('gangton-body').innerHTML = html;
     document.getElementById('gangton-section').style.display = 'block';
+
+    // 💰 한줄 시세 요약 — "어디의 무슨 건물 약 얼마"
+    renderPriceSummaryLine(priceData, r._webPriceData, r._docInfo);
 
     if (priceData && priceData._workerData) {
       const wd = priceData._workerData;
@@ -4849,7 +4933,11 @@ function renderResult(r) {
       document.getElementById('risks-section').style.display = 'block';
     }
   }
-  if (r.safe_reasons && r.safe_reasons.length) {
+  // 🚨 위험 등급일 때는 "안전한 근거" 섹션을 숨김
+  // (계약 비추천 매물에 안전 근거를 함께 보여주면 메시지 혼동 우려)
+  const isHighRisk = r.risk_level === '위험';
+
+  if (r.safe_reasons && r.safe_reasons.length && !isHighRisk) {
     document.getElementById('safe-list').innerHTML = r.safe_reasons.map(x => `<li>${escapeHtml(String(x))}</li>`).join('');
     document.getElementById('safe-section').style.display = 'block';
   }
@@ -4858,7 +4946,8 @@ function renderResult(r) {
   const safeVisible = document.getElementById('safe-section').style.display === 'block';
   const grid = document.getElementById('risk-safe-grid');
   if (grid && (riskVisible || safeVisible)) {
-    grid.style.display = 'grid';
+    // 안전 근거가 안 뜰 땐 위험 요소가 1단으로 풀폭
+    grid.style.display = safeVisible ? 'grid' : 'block';
   }
   if (r.special_clauses && r.special_clauses.length) {
     // 구 포맷(문자열) + 신 포맷(객체) 둘 다 호환
@@ -4937,9 +5026,34 @@ function renderResult(r) {
   }
 
   const docs = r.additional_docs;
-  if (Array.isArray(docs) && docs.length > 0) {
-    precheckParts.push(`<div><div style="font-weight:700;color:#2a5bd7;margin-bottom:6px;font-size:13px">📑 추가 확인 서류 및 체크 포인트</div>${
-      docs.map(d => `
+  // 🛡️ 이미 첨부된 서류는 additional_docs에서 자동 제외
+  // (AI가 규칙을 어긴 경우의 안전망)
+  const docInfo = r._docInfo || {};
+  const hasMortgage = !!(docInfo.prior_debt && Number(docInfo.prior_debt) > 0);
+  const hasRegistryData = hasMortgage || docInfo.is_trust || docInfo.trustee || !!docInfo.current_owner;
+  const hasContractData = !!(docInfo.lease_price || docInfo.existing_special_clauses?.length || docInfo.landlord_name);
+  const hasBuildingLedger = !!(docInfo.building_structure && docInfo.building_usage && docInfo.land_area);
+
+  const filteredDocs = Array.isArray(docs) ? docs.filter(d => {
+    const docName = String(d?.doc || '').toLowerCase();
+    if (hasRegistryData && /등기.*증명|등기부등본|등기사항/.test(docName)) {
+      console.log('[additional_docs 필터] 등기부 이미 첨부:', d.doc);
+      return false;
+    }
+    if (hasContractData && /임대.*계약|전세.*계약|계약서/.test(docName)) {
+      console.log('[additional_docs 필터] 계약서 이미 첨부:', d.doc);
+      return false;
+    }
+    if (hasBuildingLedger && /건축.*대장|건축물대장/.test(docName)) {
+      console.log('[additional_docs 필터] 건축물대장 이미 첨부:', d.doc);
+      return false;
+    }
+    return true;
+  }) : docs;
+
+  if (Array.isArray(filteredDocs) && filteredDocs.length > 0) {
+    precheckParts.push(`<div><div style="font-weight:700;color:#2a5bd7;margin-bottom:6px;font-size:13px">📑 추가 발급이 필요한 서류</div>${
+      filteredDocs.map(d => `
         <div style="background:#fff;border:1px solid #c5d8ff;border-radius:8px;padding:10px 12px;margin-bottom:6px">
           <div style="font-weight:600;color:#2a5bd7;font-size:13px;margin-bottom:4px">
             ${d.required ? '<span style="background:#c0392b;color:#fff;padding:1px 6px;border-radius:4px;font-size:10px;margin-right:6px">필수</span>' : ''}
@@ -4952,6 +5066,17 @@ function renderResult(r) {
     }</div>`);
   } else if (typeof docs === 'string' && docs.trim()) {
     precheckParts.push(`<div style="white-space:pre-wrap;font-size:13px;line-height:1.7">${escapeHtml(docs)}</div>`);
+  }
+
+  // 이미 첨부된 서류 안내 (있을 때만)
+  const attachedNotes = [];
+  if (hasRegistryData) attachedNotes.push('등기부등본 ✅');
+  if (hasContractData) attachedNotes.push('임대차계약서 ✅');
+  if (hasBuildingLedger) attachedNotes.push('건축물대장 ✅');
+  if (attachedNotes.length > 0) {
+    precheckParts.push(`<div style="margin-top:8px;padding:8px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;font-size:11.5px;color:#166534">
+      이미 분석에 사용된 서류: ${attachedNotes.join(' · ')}
+    </div>`);
   }
 
   const precheckSection = document.getElementById('precheck-section');
