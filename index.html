@@ -517,7 +517,7 @@
 <header>
   <span>🏠</span>
   <h1>부동산 계약서 AI 분석</h1>
-  <span class="subtitle build-stamp">2026-04-25 10:12</span>
+  <span class="subtitle build-stamp">2026-04-25 10:28</span>
 </header>
 
 <div class="container">
@@ -629,6 +629,20 @@
     <!-- 🚨 소유자·신탁 최상위 경고 배너 -->
     <div id="ownership-alert" style="display:none"></div>
 
+    <!-- 🎯 점수 + 한줄 결론 통합 헤드라인 -->
+    <div id="score-headline-card" style="display:none;background:linear-gradient(135deg,#fafbff 0%,#f0f5ff 100%);border:1px solid #d8e3ff;border-radius:12px;padding:18px 20px;margin-bottom:1.25rem;box-shadow:0 1px 4px rgba(74,124,247,0.06)">
+      <div style="display:flex;align-items:flex-start;gap:18px">
+        <div class="score-circle" id="score-circle" style="flex-shrink:0">
+          <div class="score-num" id="score-num">--</div>
+          <div class="score-sub">/ 100</div>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:11px;font-weight:700;color:#2a5bd7;letter-spacing:0.5px;margin-bottom:4px">📊 종합 평가</div>
+          <div id="advice-body" style="font-size:14.5px;line-height:1.65;color:#1a2b50;font-weight:600"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- 계약서 자동 생성 카드 -->
     <div class="doc-gen-card" id="doc-gen-card" style="display:none">
       <div class="doc-gen-header">
@@ -661,22 +675,16 @@
       <div class="doc-gen-status" id="doc-gen-status"></div>
     </div>
 
-    <div class="score-section" id="score-section" style="display:none">
-      <div class="result-section-title">🎯 계약 조건 점수</div>
-      <div class="score-headline">
-        <div class="score-circle" id="score-circle">
-          <div class="score-num" id="score-num">--</div>
-          <div class="score-sub">/ 100</div>
-        </div>
-        <div class="score-desc" id="score-desc"></div>
+    <!-- 📊 5개 항목별 점수 (상세) - 접이식 -->
+    <details class="score-section" id="score-section" style="display:none;border:1px solid #e8e8e8;border-radius:10px;padding:0;background:#fff">
+      <summary style="cursor:pointer;padding:12px 16px;font-size:13px;font-weight:600;color:#555;list-style:none;display:flex;justify-content:space-between;align-items:center;background:#fafafa;border-radius:10px">
+        <span>🎯 항목별 점수 보기 (5개 평가지표)</span>
+        <span style="font-size:11px;color:#888">펼치기 ▼</span>
+      </summary>
+      <div style="padding:14px 16px;border-top:1px solid #eee">
+        <div class="score-items" id="score-items"></div>
       </div>
-      <!-- 💡 한줄 결론 — 점수와 함께 표시 -->
-      <div id="advice-inline" style="display:none;background:linear-gradient(135deg,#e8f0ff 0%,#f0f5ff 100%);border:2px solid #4a7cf7;border-radius:10px;padding:14px 18px;margin-top:14px;box-shadow:0 2px 6px rgba(74,124,247,0.1)">
-        <div style="font-size:13px;font-weight:800;color:#2a5bd7;margin-bottom:6px;letter-spacing:-0.3px">💡 한줄 결론</div>
-        <div id="advice-body" style="font-size:14.5px;line-height:1.7;color:#1a2b50;font-weight:500"></div>
-      </div>
-      <div class="score-items" id="score-items"></div>
-    </div>
+    </details>
 
     <div class="cost-section" id="cost-section" style="display:none">
       <div class="cost-section-title">💸 관리비 포함 실질 비용</div>
@@ -4239,18 +4247,10 @@ function renderMortgageCard(mi, docInfo) {
       </div>`;
   }).join('');
 
-  // 위험 포인트
-  const risksHtml = mi.risks && mi.risks.length > 0
-    ? `<div class="mortgage-risks">
-         <div class="mortgage-risks-title">🚨 주요 위험 포인트</div>
-         <ul>${mi.risks.map(r => `<li>${r}</li>`).join('')}</ul>
-       </div>`
-    : '';
-
   // 말소 비용 안내 (facts 박스에서만 사용)
   const costNote = mi.cost_estimate || '등록면허세 7,200원 + 등기수수료 3,000원 + 법무사 수수료 (임대인 부담)';
 
-  // 본문 조립
+  // 본문 조립 — 빨간 헤더만 노출, 나머지(사실 박스·LBR·체크리스트)는 접이식
   const html = `
     <div class="mortgage-box">
       <div class="mortgage-header safety-${safety}">
@@ -4262,48 +4262,43 @@ function renderMortgageCard(mi, docInfo) {
           </div>
         </div>
       </div>
-      <div class="mortgage-body">
+      <details style="margin:0;border:1px solid #e0e0e0;border-top:none;border-radius:0 0 8px 8px;background:#fafafa">
+        <summary style="cursor:pointer;padding:10px 14px;font-size:12.5px;font-weight:600;color:#555;list-style:none;display:flex;justify-content:space-between;align-items:center">
+          <span>📋 상세 정보 + 4단계 안전 절차 체크리스트</span>
+          <span style="font-size:11px;color:#888">펼치기 ▼</span>
+        </summary>
+        <div style="padding:14px;border-top:1px solid #eee;background:#fff">
+          <div class="mortgage-facts">
+            <div class="mortgage-fact-label">채권최고액</div>
+            <div class="mortgage-fact-value">${mi.max_amount ? mi.max_amount.toLocaleString() + '만원' : '미확인'}</div>
+            <div class="mortgage-fact-label">채권자</div>
+            <div class="mortgage-fact-value">${mi.creditor || docInfo?.creditor || '미확인'}</div>
+            <div class="mortgage-fact-label">말소 특약</div>
+            <div class="mortgage-fact-value">${mi.release_clause_exists
+              ? '<span style="color:#27ae60">✓ 있음</span>'
+              : '<span style="color:#c0392b">✗ 없음</span>'}</div>
+            <div class="mortgage-fact-label">말소 비용</div>
+            <div class="mortgage-fact-value" style="font-size:11.5px">${costNote}</div>
+          </div>
 
-        <div class="mortgage-facts">
-          <div class="mortgage-fact-label">채권최고액</div>
-          <div class="mortgage-fact-value">${mi.max_amount ? mi.max_amount.toLocaleString() + '만원' : '미확인'}</div>
-          <div class="mortgage-fact-label">채권자</div>
-          <div class="mortgage-fact-value">${mi.creditor || docInfo?.creditor || '미확인'}</div>
-          <div class="mortgage-fact-label">말소 특약</div>
-          <div class="mortgage-fact-value">${mi.release_clause_exists
-            ? '<span style="color:#27ae60">✓ 있음</span>'
-            : '<span style="color:#c0392b">✗ 없음</span>'}</div>
-          <div class="mortgage-fact-label">말소 비용</div>
-          <div class="mortgage-fact-value" style="font-size:11.5px">${costNote}</div>
+          ${lbr != null ? `
+          <div class="mortgage-lbr-row">
+            <div class="mortgage-lbr-label">LBR (보증금+채권최고액) ÷ 시세 × 100</div>
+            <div class="mortgage-lbr-value" style="color:${lbrColor}">
+              ${lbr.toFixed(1)}<span class="mortgage-lbr-unit">%</span>
+            </div>
+            <div class="mortgage-lbr-note">
+              ${mi.lbr_ratio_note || (lbr >= 80 ? '80% 초과 — 매우 위험 (깡통전세 위험)'
+                : lbr >= 60 ? '60~80% — 주의 필요'
+                : '60% 이하 — 상대적으로 안전')}
+            </div>
+          </div>
+          ` : ''}
+
+          <div style="font-size:12.5px;font-weight:600;color:#555;margin-top:12px;margin-bottom:6px">📋 4단계 안전 절차 체크리스트</div>
+          ${phasesHtml}
         </div>
-
-        ${lbr != null ? `
-        <div class="mortgage-lbr-row">
-          <div class="mortgage-lbr-label">LBR (보증금+채권최고액) ÷ 시세 × 100</div>
-          <div class="mortgage-lbr-value" style="color:${lbrColor}">
-            ${lbr.toFixed(1)}<span class="mortgage-lbr-unit">%</span>
-          </div>
-          <div class="mortgage-lbr-note">
-            ${mi.lbr_ratio_note || (lbr >= 80 ? '80% 초과 — 매우 위험 (깡통전세 위험)'
-              : lbr >= 60 ? '60~80% — 주의 필요'
-              : '60% 이하 — 상대적으로 안전')}
-          </div>
-        </div>
-        ` : ''}
-
-        ${risksHtml}
-
-        <details style="margin-top:12px;border:1px solid #e0e0e0;border-radius:6px;background:#fafafa">
-          <summary style="cursor:pointer;padding:10px 14px;font-size:12.5px;font-weight:600;color:#555;list-style:none;display:flex;justify-content:space-between;align-items:center">
-            <span>📋 4단계 안전 절차 체크리스트 (계약 당일 → 잔금일 → 상환 즉시 → 잔금 이후)</span>
-            <span style="font-size:11px;color:#888">펼치기 ▼</span>
-          </summary>
-          <div style="padding:10px 14px;border-top:1px solid #eee;background:#fff">
-            ${phasesHtml}
-          </div>
-        </details>
-
-      </div>
+      </details>
     </div>`;
 
   body.innerHTML = html;
@@ -4531,7 +4526,6 @@ function renderResult(r) {
     const cc = s.total >= 70 ? 'score-good' : s.total >= 50 ? 'score-mid' : 'score-bad';
     circleEl.className = 'score-circle ' + cc;
     document.getElementById('score-num').textContent = s.total;
-    document.getElementById('score-desc').textContent = s.description || '';
     document.getElementById('score-items').innerHTML = (s.items || []).map(item => {
       const pct = Math.round((item.score / item.max) * 100);
       const barCls = pct >= 70 ? 'bar-good' : pct >= 50 ? 'bar-mid' : 'bar-bad';
@@ -4544,6 +4538,8 @@ function renderResult(r) {
         ${item.comment ? `<div style="font-size:11px;color:#999;margin:-4px 0 4px 0">${item.comment}</div>` : ''}`;
     }).join('');
     document.getElementById('score-section').style.display = 'block';
+    // 점수가 있으면 헤드라인 카드도 표시
+    document.getElementById('score-headline-card').style.display = 'block';
   }
 
   if (r.cost) {
@@ -4994,7 +4990,9 @@ function renderResult(r) {
   }
   if (r.advice) {
     document.getElementById('advice-body').textContent = r.advice;
-    document.getElementById('advice-inline').style.display = 'block';
+    // score-headline-card 가 이미 점수 있을 때 표시되니까 추가 처리 불필요
+    // 다만 score가 없을 때도 advice는 보여야 하므로 헤드라인 카드를 강제 표시
+    document.getElementById('score-headline-card').style.display = 'block';
   }
 
   const followup = document.getElementById('followup-card');
