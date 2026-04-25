@@ -273,17 +273,17 @@
   .bar-bad  { background: #e74c3c; }
   .score-item-val { text-align: right; font-weight: 700; font-size: 12px; }
 
-  .cost-section { margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #f0f0f0; }
-  .cost-section-title { font-size: 14px; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 6px; }
-  .cost-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 1rem; }
-  .cost-item { background: #f9f9f7; border-radius: 10px; padding: 12px 14px; }
-  .cost-item-label { font-size: 11px; color: #888; margin-bottom: 4px; }
-  .cost-item-val { font-size: 16px; font-weight: 700; color: #1a1a1a; }
-  .cost-item-sub { font-size: 11px; color: #aaa; margin-top: 2px; }
-  .cost-total { background: #1a1a1a; color: #fff; border-radius: 10px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; }
-  .cost-total-label { font-size: 13px; opacity: 0.7; }
-  .cost-total-val { font-size: 18px; font-weight: 800; }
-  .insurance-note { background: #f0f8ff; border-radius: 8px; padding: 10px 14px; font-size: 12.5px; color: #2a5bd7; margin-top: 10px; line-height: 1.6; }
+  .cost-section { margin-bottom: 0.9rem; padding-bottom: 0.9rem; border-bottom: 1px solid #f0f0f0; }
+  .cost-section-title { font-size: 13px; font-weight: 700; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 6px; }
+  .cost-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px; }
+  .cost-item { background: #f9f9f7; border-radius: 6px; padding: 6px 10px; }
+  .cost-item-label { font-size: 11px; color: #888; margin-bottom: 1px; }
+  .cost-item-val { font-size: 14px; font-weight: 700; color: #1a1a1a; }
+  .cost-item-sub { font-size: 10.5px; color: #aaa; margin-top: 1px; }
+  .cost-total { background: #1a1a1a; color: #fff; border-radius: 6px; padding: 7px 12px; display: flex; align-items: center; justify-content: space-between; }
+  .cost-total-label { font-size: 12px; opacity: 0.7; }
+  .cost-total-val { font-size: 15px; font-weight: 800; }
+  .insurance-note { background: #f0f8ff; border-radius: 6px; padding: 6px 10px; font-size: 11.5px; color: #2a5bd7; margin-top: 6px; line-height: 1.5; }
 
   .dispute-section { margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #f0f0f0; }
   .dispute-title { font-size: 14px; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: 6px; }
@@ -517,7 +517,7 @@
 <header>
   <span>🏠</span>
   <h1>부동산 계약서 AI 분석</h1>
-  <span class="subtitle build-stamp">2026-04-25 09:36</span>
+  <span class="subtitle build-stamp">2026-04-25 10:12</span>
 </header>
 
 <div class="container">
@@ -670,6 +670,11 @@
         </div>
         <div class="score-desc" id="score-desc"></div>
       </div>
+      <!-- 💡 한줄 결론 — 점수와 함께 표시 -->
+      <div id="advice-inline" style="display:none;background:linear-gradient(135deg,#e8f0ff 0%,#f0f5ff 100%);border:2px solid #4a7cf7;border-radius:10px;padding:14px 18px;margin-top:14px;box-shadow:0 2px 6px rgba(74,124,247,0.1)">
+        <div style="font-size:13px;font-weight:800;color:#2a5bd7;margin-bottom:6px;letter-spacing:-0.3px">💡 한줄 결론</div>
+        <div id="advice-body" style="font-size:14.5px;line-height:1.7;color:#1a2b50;font-weight:500"></div>
+      </div>
       <div class="score-items" id="score-items"></div>
     </div>
 
@@ -685,13 +690,7 @@
       <div id="pattern-items"></div>
     </div>
 
-    <!-- 💡 한줄 결론 — 가장 눈에 띄는 위치 (강조 디자인) -->
-    <div class="result-section" id="advice-section" style="display:none;background:linear-gradient(135deg,#e8f0ff 0%,#f0f5ff 100%);border:2px solid #4a7cf7;border-radius:12px;padding:18px 22px;margin-bottom:16px;box-shadow:0 2px 8px rgba(74,124,247,0.12)">
-      <div style="font-size:14px;font-weight:800;color:#2a5bd7;margin-bottom:8px;letter-spacing:-0.3px">💡 한줄 결론</div>
-      <div class="result-body" id="advice-body" style="font-size:15px;line-height:1.75;color:#1a2b50;font-weight:500"></div>
-    </div>
-
-    <!-- ⚖️ 유사 분쟁 케이스 — 결론 다음 -->
+    <!-- ⚖️ 유사 분쟁 케이스 — 점수 패널 다음 -->
     <div class="dispute-section" id="dispute-section" style="display:none">
       <div class="dispute-title">⚖️ 유사 분쟁 케이스</div>
       <div id="dispute-items"></div>
@@ -4248,20 +4247,8 @@ function renderMortgageCard(mi, docInfo) {
        </div>`
     : '';
 
-  // 권장 특약 (토큰 치환된 샘플 특약도 함께 제공)
-  const clauseRec = mi.release_clause_recommendation
-    || buildDefaultMortgageClause(docInfo);
-  const clauseRecHtml = clauseRec
-    ? `<div class="mortgage-clause-rec">
-         <div class="mortgage-clause-title">📝 권장 특약 (배액배상 조항 포함)</div>
-         <div class="mortgage-clause-content">${escapeHtml(clauseRec)}</div>
-       </div>`
-    : '';
-
-  // 말소 비용 안내 + 최종 조언
+  // 말소 비용 안내 (facts 박스에서만 사용)
   const costNote = mi.cost_estimate || '등록면허세 7,200원 + 등기수수료 3,000원 + 법무사 수수료 (임대인 부담)';
-  const overallAdvice = mi.overall_advice ||
-    '반드시 법무사 동석 하에 잔금 지급과 말소 신청을 동시 진행하고, 잔금 후 7일 이내 등기부등본으로 최종 확인하세요.';
 
   // 본문 조립
   const html = `
@@ -4304,16 +4291,17 @@ function renderMortgageCard(mi, docInfo) {
         </div>
         ` : ''}
 
-        <div class="mortgage-checklist-title">📋 4단계 안전 절차 체크리스트</div>
-        ${phasesHtml}
-
         ${risksHtml}
-        ${clauseRecHtml}
 
-        <div class="mortgage-advice">
-          💡 <strong>핵심 조언</strong><br>
-          ${overallAdvice}
-        </div>
+        <details style="margin-top:12px;border:1px solid #e0e0e0;border-radius:6px;background:#fafafa">
+          <summary style="cursor:pointer;padding:10px 14px;font-size:12.5px;font-weight:600;color:#555;list-style:none;display:flex;justify-content:space-between;align-items:center">
+            <span>📋 4단계 안전 절차 체크리스트 (계약 당일 → 잔금일 → 상환 즉시 → 잔금 이후)</span>
+            <span style="font-size:11px;color:#888">펼치기 ▼</span>
+          </summary>
+          <div style="padding:10px 14px;border-top:1px solid #eee;background:#fff">
+            ${phasesHtml}
+          </div>
+        </details>
 
       </div>
     </div>`;
@@ -4933,9 +4921,11 @@ function renderResult(r) {
       document.getElementById('risks-section').style.display = 'block';
     }
   }
-  // 🚨 위험 등급일 때는 "안전한 근거" 섹션을 숨김
+  // 🚨 위험 등급이거나 점수가 50 이하면 "안전한 근거" 섹션을 숨김
   // (계약 비추천 매물에 안전 근거를 함께 보여주면 메시지 혼동 우려)
-  const isHighRisk = r.risk_level === '위험';
+  const totalScore = r?.score?.total;
+  const isLowScore = typeof totalScore === 'number' && totalScore <= 50;
+  const isHighRisk = r.risk_level === '위험' || isLowScore;
 
   if (r.safe_reasons && r.safe_reasons.length && !isHighRisk) {
     document.getElementById('safe-list').innerHTML = r.safe_reasons.map(x => `<li>${escapeHtml(String(x))}</li>`).join('');
@@ -5004,7 +4994,7 @@ function renderResult(r) {
   }
   if (r.advice) {
     document.getElementById('advice-body').textContent = r.advice;
-    document.getElementById('advice-section').style.display = 'block';
+    document.getElementById('advice-inline').style.display = 'block';
   }
 
   const followup = document.getElementById('followup-card');
