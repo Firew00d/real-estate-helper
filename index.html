@@ -517,7 +517,7 @@
 <header>
   <span>🏠</span>
   <h1>부동산 계약서 AI 분석</h1>
-  <span class="subtitle build-stamp">2026-04-25 10:28</span>
+  <span class="subtitle build-stamp">2026-04-25 10:40</span>
 </header>
 
 <div class="container">
@@ -620,71 +620,30 @@
 
   <!-- 분석 결과 카드 -->
   <div class="result-card" id="result-card">
-    <div class="result-header">
+    <div class="result-header" style="align-items:center">
       <span>📋</span>
       <h3>분석 결과</h3>
-      <span class="risk-badge" id="risk-badge"></span>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:14px">
+        <div id="header-score" style="display:none;font-size:26px;font-weight:800;color:#1a2b50;letter-spacing:-0.5px">
+          <span id="header-score-num">--</span><span style="font-size:16px;color:#888;font-weight:600">/100</span>
+        </div>
+        <span class="risk-badge" id="risk-badge" style="font-size:16px;padding:6px 16px"></span>
+      </div>
     </div>
 
     <!-- 🚨 소유자·신탁 최상위 경고 배너 -->
     <div id="ownership-alert" style="display:none"></div>
 
-    <!-- 🎯 점수 + 한줄 결론 통합 헤드라인 -->
-    <div id="score-headline-card" style="display:none;background:linear-gradient(135deg,#fafbff 0%,#f0f5ff 100%);border:1px solid #d8e3ff;border-radius:12px;padding:18px 20px;margin-bottom:1.25rem;box-shadow:0 1px 4px rgba(74,124,247,0.06)">
-      <div style="display:flex;align-items:flex-start;gap:18px">
-        <div class="score-circle" id="score-circle" style="flex-shrink:0">
-          <div class="score-num" id="score-num">--</div>
-          <div class="score-sub">/ 100</div>
-        </div>
-        <div style="flex:1;min-width:0">
-          <div style="font-size:11px;font-weight:700;color:#2a5bd7;letter-spacing:0.5px;margin-bottom:4px">📊 종합 평가</div>
-          <div id="advice-body" style="font-size:14.5px;line-height:1.65;color:#1a2b50;font-weight:600"></div>
-        </div>
-      </div>
+    <!-- 💡 한줄 결론 (점수 원형/소제목 없이 결론 문구만 강조) -->
+    <div id="score-headline-card" style="display:none;background:linear-gradient(135deg,#fafbff 0%,#f0f5ff 100%);border:1px solid #d8e3ff;border-radius:12px;padding:16px 20px;margin-bottom:1.25rem;box-shadow:0 1px 4px rgba(74,124,247,0.06)">
+      <div id="advice-body" style="font-size:14.5px;line-height:1.7;color:#1a2b50;font-weight:600"></div>
     </div>
 
-    <!-- 계약서 자동 생성 카드 -->
-    <div class="doc-gen-card" id="doc-gen-card" style="display:none">
-      <div class="doc-gen-header">
-        <span style="font-size:22px">📝</span>
-        <div class="doc-gen-title">임시 계약서 자동 생성</div>
-      </div>
-      <div class="doc-gen-desc">
-        분석된 정보로 내장 템플릿(.docx)에 자동으로 채워넣어 완성된 계약서를 만들어드려요.<br>
-        누락된 필수 특약은 자동으로 보완됩니다.
-      </div>
-      <div class="missing-clauses-box" id="missing-clauses-box" style="display:none">
-        <strong>⚠️ 다음 필수 특약이 누락되어 자동 추가됩니다:</strong>
-        <ul class="missing-clauses-list" id="missing-clauses-list"></ul>
-      </div>
-      <div id="user-selected-clauses-summary" style="display:none;background:#f0f5ff;border:1px solid #c5d8ff;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:12.5px;line-height:1.7">
-        <div style="font-weight:600;color:#2a5bd7;margin-bottom:4px">
-          ✅ 사용자가 선택한 추가 특약 <span id="user-selected-count-badge" style="background:#4a7cf7;color:#fff;padding:1px 8px;border-radius:10px;margin-left:4px">0</span>
-        </div>
-        <ul id="user-selected-list" style="margin:4px 0 0 0;padding-left:20px;color:#334;font-size:12px"></ul>
-      </div>
-      <div class="doc-gen-actions">
-        <button class="btn btn-success" id="gen-doc-btn" onclick="generateContract('template')">📄 원본 양식으로 생성 (.docx)</button>
-        <button class="btn btn-outline" id="gen-doc-btn-clean" onclick="generateContract('clean')">✨ 새 양식으로 생성</button>
-        <button class="btn btn-outline" onclick="previewMissingClauses()">🔍 추가될 특약 미리보기</button>
-      </div>
-      <div style="font-size:11px;color:#888;margin-top:6px;line-height:1.5">
-        · <strong>원본 양식</strong>: 업로드된 템플릿(contractsample.docx) 디자인 그대로 유지<br>
-        · <strong>새 양식</strong>: 표준 계약서 형태로 새로 조립 (깔끔함)
-      </div>
-      <div class="doc-gen-status" id="doc-gen-status"></div>
+    <!-- 📊 5개 항목별 점수 (항상 표시) -->
+    <div class="score-section" id="score-section" style="display:none;border:1px solid #e8e8e8;border-radius:10px;padding:14px 16px;margin-bottom:1.25rem;background:#fff">
+      <div style="font-size:13px;font-weight:600;color:#555;margin-bottom:10px">🎯 항목별 점수 (5개 평가지표)</div>
+      <div class="score-items" id="score-items"></div>
     </div>
-
-    <!-- 📊 5개 항목별 점수 (상세) - 접이식 -->
-    <details class="score-section" id="score-section" style="display:none;border:1px solid #e8e8e8;border-radius:10px;padding:0;background:#fff">
-      <summary style="cursor:pointer;padding:12px 16px;font-size:13px;font-weight:600;color:#555;list-style:none;display:flex;justify-content:space-between;align-items:center;background:#fafafa;border-radius:10px">
-        <span>🎯 항목별 점수 보기 (5개 평가지표)</span>
-        <span style="font-size:11px;color:#888">펼치기 ▼</span>
-      </summary>
-      <div style="padding:14px 16px;border-top:1px solid #eee">
-        <div class="score-items" id="score-items"></div>
-      </div>
-    </details>
 
     <div class="cost-section" id="cost-section" style="display:none">
       <div class="cost-section-title">💸 관리비 포함 실질 비용</div>
@@ -760,6 +719,38 @@
     <div class="followup-card" id="followup-card">
       <div class="followup-title">📌 더 정확한 분석을 위해 추가로 확인해주세요</div>
       <div class="followup-body" id="followup-body"></div>
+    </div>
+
+    <!-- 📝 임시 계약서 자동 생성 (맨 아래) -->
+    <div class="doc-gen-card" id="doc-gen-card" style="display:none;margin-top:1.25rem">
+      <div class="doc-gen-header">
+        <span style="font-size:22px">📝</span>
+        <div class="doc-gen-title">임시 계약서 자동 생성</div>
+      </div>
+      <div class="doc-gen-desc">
+        분석된 정보로 내장 템플릿(.docx)에 자동으로 채워넣어 완성된 계약서를 만들어드려요.<br>
+        누락된 필수 특약은 자동으로 보완됩니다.
+      </div>
+      <div class="missing-clauses-box" id="missing-clauses-box" style="display:none">
+        <strong>⚠️ 다음 필수 특약이 누락되어 자동 추가됩니다:</strong>
+        <ul class="missing-clauses-list" id="missing-clauses-list"></ul>
+      </div>
+      <div id="user-selected-clauses-summary" style="display:none;background:#f0f5ff;border:1px solid #c5d8ff;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:12.5px;line-height:1.7">
+        <div style="font-weight:600;color:#2a5bd7;margin-bottom:4px">
+          ✅ 사용자가 선택한 추가 특약 <span id="user-selected-count-badge" style="background:#4a7cf7;color:#fff;padding:1px 8px;border-radius:10px;margin-left:4px">0</span>
+        </div>
+        <ul id="user-selected-list" style="margin:4px 0 0 0;padding-left:20px;color:#334;font-size:12px"></ul>
+      </div>
+      <div class="doc-gen-actions">
+        <button class="btn btn-success" id="gen-doc-btn" onclick="generateContract('template')">📄 원본 양식으로 생성 (.docx)</button>
+        <button class="btn btn-outline" id="gen-doc-btn-clean" onclick="generateContract('clean')">✨ 새 양식으로 생성</button>
+        <button class="btn btn-outline" onclick="previewMissingClauses()">🔍 추가될 특약 미리보기</button>
+      </div>
+      <div style="font-size:11px;color:#888;margin-top:6px;line-height:1.5">
+        · <strong>원본 양식</strong>: 업로드된 템플릿(contractsample.docx) 디자인 그대로 유지<br>
+        · <strong>새 양식</strong>: 표준 계약서 형태로 새로 조립 (깔끔함)
+      </div>
+      <div class="doc-gen-status" id="doc-gen-status"></div>
     </div>
   </div>
 
@@ -2263,7 +2254,7 @@ ${attachedDocsContext}
       { "label": "권리 안전성", "score": 숫자(0~20), "max": 20, "comment": "코멘트(근저당 있으면 감점 요소로 반영)" },
       { "label": "계약 조건", "score": 숫자(0~20), "max": 20, "comment": "코멘트" },
       { "label": "특약 완성도", "score": 숫자(0~20), "max": 20, "comment": "코멘트(근저당 있는데 말소특약 없으면 크게 감점)" },
-      { "label": "서류 완비", "score": 숫자(0~20), "max": 20, "comment": "코멘트" }
+      { "label": "서류 완비", "score": 숫자(0~20), "max": 20, "comment": "코멘트 — 점수 기준은 아래 가이드라인 11번 참고" }
     ]
   },
   "cost": {
@@ -2403,7 +2394,21 @@ ${attachedDocsContext}
    - **owner_type이 'corporation'이면** (일반 법인):
      * risks에 "소유자가 법인이므로 법인 등기부·대표 권한 추가 확인 필요" 기재
      * risk_level 최소 "주의"
-     * additional_docs에 "법인 등기사항전부증명서" 추가`
+     * additional_docs에 "법인 등기사항전부증명서" 추가
+
+11. **서류 완비 점수 산정 기준** (max 20점) — 다음 5가지를 각각 4점씩 평가:
+   ① 등기부등본 (4점) — 첨부 ✅면 4점, 없으면 0점
+   ② 임대차계약서 (4점) — 첨부 ✅면 4점, 없으면 0점
+   ③ 건축물대장 (4점) — 첨부 ✅면 4점, 없으면 0점
+   ④ 신탁 부동산인 경우 신탁원부 (4점) — is_trust=true이면 신탁원부도 필요. 미첨부면 0점.
+       is_trust=false이면 이 항목은 자동 만점(4점) 처리.
+   ⑤ 법인 소유인 경우 법인 등기부등본 (4점) — owner_type='corporation'이면 필요.
+       법인 소유 아니면 이 항목 자동 만점(4점) 처리.
+
+   ⚠️ 중요: 신탁이 발견됐는데 신탁원부가 없으면 ④ 0점 → 최대 16점.
+   ⚠️ 법인 소유면 ⑤ 0점 → 최대 16점 (등기부 외 법인등기부도 필요).
+   ⚠️ 등기부등본만 첨부했고 신탁이 있으면 → 4 + 0 + 0 + 0 = **4점** (서류 매우 부족).
+   comment에 "신탁원부·계약서 등 추가 서류 필요" 같이 부족한 항목을 명시할 것.`
       }
     ]
   }];
@@ -4522,10 +4527,16 @@ function renderResult(r) {
 
   if (r.score) {
     const s = r.score;
-    const circleEl = document.getElementById('score-circle');
-    const cc = s.total >= 70 ? 'score-good' : s.total >= 50 ? 'score-mid' : 'score-bad';
-    circleEl.className = 'score-circle ' + cc;
-    document.getElementById('score-num').textContent = s.total;
+    // 헤더 우측 큰 점수 표시 + 등급별 색
+    const headerScore = document.getElementById('header-score');
+    const headerNum = document.getElementById('header-score-num');
+    if (headerScore && headerNum) {
+      headerNum.textContent = s.total;
+      const scoreColor = s.total >= 70 ? '#1a7f44' : s.total >= 50 ? '#c47f17' : '#c0392b';
+      headerScore.style.color = scoreColor;
+      headerScore.style.display = 'flex';
+    }
+    // 항목별 점수 (항상 표시)
     document.getElementById('score-items').innerHTML = (s.items || []).map(item => {
       const pct = Math.round((item.score / item.max) * 100);
       const barCls = pct >= 70 ? 'bar-good' : pct >= 50 ? 'bar-mid' : 'bar-bad';
@@ -4538,8 +4549,6 @@ function renderResult(r) {
         ${item.comment ? `<div style="font-size:11px;color:#999;margin:-4px 0 4px 0">${item.comment}</div>` : ''}`;
     }).join('');
     document.getElementById('score-section').style.display = 'block';
-    // 점수가 있으면 헤드라인 카드도 표시
-    document.getElementById('score-headline-card').style.display = 'block';
   }
 
   if (r.cost) {
